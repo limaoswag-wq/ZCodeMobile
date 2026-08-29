@@ -120,6 +120,16 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         Task { await sendTextAsync(text, taskId: taskId) }
     }
 
+    /// 拉一次工作区和任务列表（监控模式轮询用）。
+    func refreshWorkspaces() {
+        requestCounter += 1
+        var payload: [String: Any] = [
+            "zcode_type": "workspace-list-request",
+            "requestId": "workspaces-\(requestCounter)"
+        ]
+        sendPayload(payload)
+    }
+
     func stopCurrentTask() {
         Task { await sendAgentCommand("abort", payload: [:], sessionId: activeTaskId) }
     }

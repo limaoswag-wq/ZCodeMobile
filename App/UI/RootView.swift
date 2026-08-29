@@ -174,7 +174,7 @@ struct SettingsSheet: View {
             Form {
                 Section {
                     LabeledContent("设备", value: link?.deviceName ?? "未知")
-                    LabeledContent("地址", value: String((settings.officialURL as NSString).prefix(48)) + "…")
+                    LabeledContent("地址", value: String(settings.officialURL.prefix(48)) + "…")
                         .font(.footnote)
                     Button {
                         onReload()
