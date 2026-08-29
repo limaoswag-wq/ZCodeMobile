@@ -204,7 +204,6 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                 endMs: endMs,
                 running: running,
                 expanded: expandedWorks.contains(id),
-                expandedThinkings: expandedThinkings,
                 trait: traitCollection,
                 onToggleWork: { [weak self] in
                     guard let self else { return }
@@ -212,17 +211,6 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                         self.expandedWorks.remove(id)
                     } else {
                         self.expandedWorks.insert(id)
-                    }
-                    self.table.beginUpdates()
-                    self.table.reloadRows(at: [indexPath], with: .none)
-                    self.table.endUpdates()
-                },
-                onToggleThinking: { [weak self] itemId in
-                    guard let self else { return }
-                    if self.expandedThinkings.contains(itemId) {
-                        self.expandedThinkings.remove(itemId)
-                    } else {
-                        self.expandedThinkings.insert(itemId)
                     }
                     self.table.beginUpdates()
                     self.table.reloadRows(at: [indexPath], with: .none)
@@ -552,10 +540,7 @@ final class UserCell: UITableViewCell {
 final class WorkCell: UITableViewCell {
     static let id = "work"
     private var onToggleWork: (() -> Void)?
-    private var onToggleThinking: ((String) -> Void)?
     private var workId = ""
-    private var thinkingHandlers: [Int: String] = [:]
-    private var nextThinkingTag = 0
     private var startMs = 0
     private var endMs = 0
     private var running = false
@@ -628,10 +613,8 @@ final class WorkCell: UITableViewCell {
         endMs: Int,
         running: Bool,
         expanded: Bool,
-        expandedThinkings: Set<String>,
         trait: UITraitCollection,
-        onToggleWork: @escaping () -> Void,
-        onToggleThinking: @escaping (String) -> Void
+        onToggleWork: @escaping () -> Void
     ) {
         self.workId = id
         self.startMs = startMs
@@ -639,9 +622,6 @@ final class WorkCell: UITableViewCell {
         self.running = running
         self.expanded = expanded
         self.onToggleWork = onToggleWork
-        self.onToggleThinking = onToggleThinking
-        thinkingHandlers.removeAll()
-        nextThinkingTag = 0
 
         headerButton.setTitle("  已工作 \(durationText())", for: .normal)
         headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
@@ -659,7 +639,7 @@ final class WorkCell: UITableViewCell {
         for item in items {
             switch item.kind {
             case .thinking:
-                container.addArrangedSubview(makeThinkingRow(item, expanded: expandedThinkings.contains(item.id), trait: trait))
+                container.addArrangedSubview(makeThinkingRow(item, trait: trait))
             case .skill:
                 container.addArrangedSubview(makeIconRow(
                     symbol: "wand.and.stars",
@@ -696,24 +676,21 @@ final class WorkCell: UITableViewCell {
 
     @objc private func tapHeader() { onToggleWork?() }
 
-    private func makeThinkingRow(_ item: WorkItem, expanded: Bool, trait: UITraitCollection) -> UIView {
+    private func makeThinkingRow(_ item: WorkItem, trait: UITraitCollection) -> UIView {
         let wrap = UIView()
         wrap.translatesAutoresizingMaskIntoConstraints = false
 
-        let head = UIButton(type: .system)
+        let head = UIView()
         head.translatesAutoresizingMaskIntoConstraints = false
-        head.contentHorizontalAlignment = .left
-        head.setTitle("思考 · 持续了几秒", for: .normal)
-        head.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
-        head.titleLabel?.font = .systemFont(ofSize: 12.5)
         let icon = UIImageView(image: UIImage(systemName: "brain.head.profile"))
         icon.tintColor = ZUIColor.inkSoft(trait)
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.contentMode = .scaleAspectFit
-        let arrow = UIImageView(image: UIImage(systemName: expanded ? "chevron.up" : "chevron.down"))
-        arrow.tintColor = ZUIColor.inkFaint(trait)
-        arrow.translatesAutoresizingMaskIntoConstraints = false
-        arrow.contentMode = .scaleAspectFit
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = "思考 · 持续了几秒"
+        label.textColor = ZUIColor.inkSoft(trait)
+        label.font = .systemFont(ofSize: 12.5)
 
         let body = UILabel()
         body.translatesAutoresizingMaskIntoConstraints = false
@@ -721,41 +698,28 @@ final class WorkCell: UITableViewCell {
         body.textColor = ZUIColor.inkSoft(trait)
         body.numberOfLines = 0
         body.text = item.detail
-        body.isHidden = !expanded
 
-        wrap.addSubview(icon)
         wrap.addSubview(head)
-        wrap.addSubview(arrow)
+        head.addSubview(icon)
+        head.addSubview(label)
         wrap.addSubview(body)
         NSLayoutConstraint.activate([
-            icon.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            head.topAnchor.constraint(equalTo: wrap.topAnchor),
+            head.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            head.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor),
+            head.heightAnchor.constraint(equalToConstant: 20),
+            icon.leadingAnchor.constraint(equalTo: head.leadingAnchor),
             icon.centerYAnchor.constraint(equalTo: head.centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 14),
             icon.heightAnchor.constraint(equalToConstant: 14),
-            head.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
-            head.topAnchor.constraint(equalTo: wrap.topAnchor),
-            head.heightAnchor.constraint(equalToConstant: 20),
-            head.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor),
-            arrow.leadingAnchor.constraint(equalTo: head.trailingAnchor, constant: 4),
-            arrow.centerYAnchor.constraint(equalTo: head.centerYAnchor),
-            arrow.widthAnchor.constraint(equalToConstant: 10),
-            arrow.heightAnchor.constraint(equalToConstant: 10),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
+            label.centerYAnchor.constraint(equalTo: head.centerYAnchor),
             body.topAnchor.constraint(equalTo: head.bottomAnchor, constant: 4),
-            body.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            body.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 20),
             body.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
             body.bottomAnchor.constraint(equalTo: wrap.bottomAnchor)
         ])
-        nextThinkingTag += 1
-        head.tag = nextThinkingTag
-        thinkingHandlers[nextThinkingTag] = item.id
-        head.addTarget(self, action: #selector(tapThinking(_:)), for: .touchUpInside)
         return wrap
-    }
-
-    @objc private func tapThinking(_ sender: UIButton) {
-        if let id = thinkingHandlers[sender.tag] {
-            onToggleThinking?(id)
-        }
     }
 
     private func makeIconRow(symbol: String, parts: [(String, UIColor, Bool)], trait: UITraitCollection) -> UIView {

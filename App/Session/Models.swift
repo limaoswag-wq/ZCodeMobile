@@ -151,44 +151,58 @@ enum ThoughtLevel: String, CaseIterable, Identifiable {
 }
 
 enum EntryBuilder {
-    /// 把按时间排序的会话行分组成：用户气泡 / 已工作折叠块 / 正文。
-    /// 过程内容（思考、技能、终端、读取、中间解说）全部进「已工作」；
-    /// 一轮里最后一次工具/思考之后的文本才是正文。
+    /// 把按时间排序的会话行分组成：用户气泡 / 已工作折叠块（每轮一个）/ 正文。
+    /// 一轮 = 一次用户输入之后的所有助手行；思考/技能/终端/读取/中间解说全部进
+    /// 这轮唯一的「已工作」，最后一批没跟工具的文本是这轮的正文。
     static func build(messages: [ChatMessage]) -> [ChatEntry] {
         var entries: [ChatEntry] = []
         var items: [WorkItem] = []
-        var workStart = 0
-        var workEnd = 0
+        var turnStart = 0
+        var turnEnd = 0
         var pending: [(id: String, text: String)] = []
 
-        func flushWork(includePending: Bool) {
-            if includePending {
-                for p in pending {
-                    items.append(WorkItem(
-                        id: "\(p.id)-mid",
-                        kind: .text,
-                        title: "",
-                        detail: p.text,
-                        createdAt: workEnd
-                    ))
-                }
-            }
-            pending.removeAll()
+        // 输出当前轮唯一的已工作块；不动 pending。
+        func emitTurn() {
             guard !items.isEmpty else { return }
             let id = "work-\(items.first!.id)"
             entries.append(ChatEntry(id: id, kind: .work(
                 id: id,
                 items: items,
-                startMs: workStart,
-                endMs: workEnd,
+                startMs: turnStart,
+                endMs: turnEnd,
                 running: false
             )))
             items.removeAll()
         }
 
+        // 中间解说并入当前轮时间线。
+        func foldPendingIntoTurn() {
+            for p in pending {
+                items.append(WorkItem(
+                    id: "\(p.id)-mid",
+                    kind: .text,
+                    title: "",
+                    detail: p.text,
+                    createdAt: turnEnd
+                ))
+            }
+            pending.removeAll()
+        }
+
         for message in messages {
             if message.isUser {
-                flushWork(includePending: true)
+                // 上一轮结束：先出这轮唯一的已工作，再出正文，最后才是新用户气泡。
+                emitTurn()
+                if !pending.isEmpty {
+                    let joined = pending.map(\.text).joined(separator: "\n\n")
+                    let bodyId = "body-\(pending.first!.id)"
+                    entries.append(ChatEntry(id: bodyId, kind: .body(
+                        id: bodyId,
+                        markdown: joined,
+                        time: turnEnd
+                    )))
+                    pending.removeAll()
+                }
                 let text = message.blocks.first?.text ?? message.markdown
                 entries.append(ChatEntry(
                     id: message.id,
@@ -199,9 +213,9 @@ enum EntryBuilder {
             for block in message.blocks {
                 switch block.kind {
                 case "reasoning":
-                    if !pending.isEmpty { flushWork(includePending: true) }
-                    if items.isEmpty { workStart = message.createdAt }
-                    workEnd = message.createdAt
+                    foldPendingIntoTurn()
+                    if items.isEmpty { turnStart = message.createdAt }
+                    turnEnd = message.createdAt
                     items.append(WorkItem(
                         id: block.id,
                         kind: .thinking,
@@ -210,9 +224,9 @@ enum EntryBuilder {
                         createdAt: message.createdAt
                     ))
                 case "tool":
-                    if !pending.isEmpty { flushWork(includePending: true) }
-                    if items.isEmpty { workStart = message.createdAt }
-                    workEnd = message.createdAt
+                    foldPendingIntoTurn()
+                    if items.isEmpty { turnStart = message.createdAt }
+                    turnEnd = message.createdAt
                     let name = block.tool ?? ""
                     let kind: WorkItem.Kind
                     let title: String
@@ -239,15 +253,15 @@ enum EntryBuilder {
                 }
             }
         }
-        // 收尾：最后一批没跟工具的文本就是正文。
-        flushWork(includePending: false)
+        // 会话收尾：最后一轮的已工作和正文。
+        emitTurn()
         if !pending.isEmpty {
             let joined = pending.map(\.text).joined(separator: "\n\n")
             let bodyId = "body-\(pending.first!.id)"
             entries.append(ChatEntry(id: bodyId, kind: .body(
                 id: bodyId,
                 markdown: joined,
-                time: workEnd
+                time: turnEnd
             )))
         }
         return entries

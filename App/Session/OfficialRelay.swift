@@ -575,13 +575,10 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     private func createSessionWithFirstInput(_ text: String) async {
         do {
             if !helloReady { try await prepareConversation() }
+            // createSession 的 payload 是 strict 校验：只发它认识的字段。
             var payload: [String: Any] = [:]
             if let workspace = selectedWorkspace() {
-                if let path = workspace.path {
-                    payload["workspaceId"] = path
-                    payload["workspacePath"] = path
-                }
-                if let identity = workspace.identity { payload["workspaceIdentity"] = identity }
+                payload["workspaceId"] = workspace.key
             }
             payload["firstInput"] = ["text": text]
             var args = workspaceArgs()
