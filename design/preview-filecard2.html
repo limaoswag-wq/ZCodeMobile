@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>交互演示 v2 · 审查/打开走侧边栏</title>
+<style>
+  *{box-sizing:border-box;margin:0}
+  body{background:#0e0f12;color:#e8e9ec;font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;padding:24px 20px 60px}
+  h1{font-size:19px}.sub{color:#9aa0aa;font-size:13px;margin:6px 0 18px;line-height:1.6}
+  .wrap{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:375px;height:812px;background:#fff;border:10px solid #1b1c20;border-radius:54px;overflow:hidden;position:relative;color:#171719;box-shadow:0 18px 55px rgba(0,0,0,.5);display:flex;flex-direction:column}
+  .statusbar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600}
+  .top{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #f0f0f2}
+  .top .back{font-size:20px;width:30px}
+  .top .title{font-size:15.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top .pill{font-size:12.5px;font-weight:600;background:#f2f3f5;border-radius:16px;padding:7px 12px}
+  .scroll{flex:1;overflow-y:auto;padding:10px 16px 16px;position:relative}
+  .homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:#171719;opacity:.85;z-index:40}
+  .composer{flex:none;margin:0 12px 22px;background:#fff;border:1px solid #ececee;border-radius:26px;padding:13px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 26px rgba(0,0,0,.06);position:relative;z-index:5}
+  .composer .plus{width:32px;height:32px;border-radius:50%;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .composer .ph{flex:1;color:#b3b8c2;font-size:15px}
+  .composer .send{width:32px;height:32px;border-radius:50%;background:#2f6bff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .urow{display:flex;justify-content:flex-end;margin:8px 0 2px}
+  .ubub{background:#f2f3f5;border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14.5px;max-width:78%;line-height:1.5}
+  .meta{display:flex;gap:12px;justify-content:flex-end;color:#b3b8c2;font-size:11.5px;margin:4px 2px 10px}
+  .work-h{display:flex;align-items:center;gap:6px;color:#8a8f98;font-size:13px;padding:8px 0;cursor:pointer;user-select:none}
+  .work-h .ch{font-size:10px;transition:transform .18s}
+  .work-h.open .ch{transform:rotate(180deg)}
+  .tl{border-left:2px solid #ececee;margin:2px 0 10px 6px;padding-left:14px;display:flex;flex-direction:column;gap:9px}
+  .ti{font-size:12.5px;color:#8a8f98}
+  .ti .h{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+  .ti .h .ic{width:14px;text-align:center}
+  .ti .h .add{color:#22a06b;font-weight:600;font-size:11.5px}
+  .ti .h .ch{font-size:9px;color:#b3b8c2;transition:transform .18s}
+  .ti.open .h .ch{transform:rotate(180deg)}
+  .ti .bd{display:none;margin:6px 0 0 20px;font-size:11.5px;color:#8a8f98;font-family:ui-monospace,Consolas,monospace;background:#f7f7f8;border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
+  .ti.open .bd{display:block}
+  .body{font-size:14.5px;line-height:1.65;color:#171719}
+  .body h3{font-size:16px;font-weight:700;margin:12px 0 6px}
+  .body p{margin:0 0 9px}
+  .fcard{border:1px solid #ececee;border-radius:14px;margin:6px 0 8px;overflow:hidden}
+  .fcard-h{display:flex;align-items:center;gap:8px;padding:11px 12px;font-size:13px;cursor:pointer;user-select:none}
+  .fcard-h .ch{font-size:10px;color:#8a8f98;transition:transform .18s}
+  .fcard.open .fcard-h .ch{transform:rotate(180deg)}
+  .fcard-h b{font-weight:600}
+  .fcard-h .add{color:#22a06b;font-weight:600}.fcard-h .del{color:#e5484d;font-weight:600}
+  .fcard-h .undo{margin-left:auto;color:#8a8f98;display:flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer}
+  .files{display:none}
+  .fcard.open .files{display:block}
+  .frow{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #f4f4f6;font-size:12.5px}
+  .frow .ic{color:#8a8f98}
+  .frow .fname{font-weight:600;color:#171719;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
+  .frow .fdir{color:#b3b8c2;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56px}
+  .frow .st{color:#22a06b;font-weight:600;font-size:11.5px}
+  .btn{border:1px solid #e3e5e9;background:#fff;border-radius:9px;padding:4px 11px;font-size:12px;font-weight:600;color:#171719;cursor:pointer}
+  .btn:active{background:#f2f3f5}
+  /* ===== 侧边栏 ===== */
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:18;opacity:0;pointer-events:none;transition:opacity .2s}
+  .dim.show{opacity:1;pointer-events:auto}
+  .panel{position:absolute;top:0;bottom:0;right:0;width:86%;background:#fff;z-index:20;transform:translateX(105%);transition:transform .24s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;border-radius:26px 0 0 26px;box-shadow:-14px 0 40px rgba(0,0,0,.16)}
+  .panel.show{transform:translateX(0)}
+  .p-top{height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px}
+  .p-top .t{font-size:15px;font-weight:700;flex:1}
+  .p-top .x{font-size:16px;width:30px;height:30px;border-radius:50%;background:#f2f3f5;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .p-tabs{display:flex;gap:8px;padding:0 14px 10px}
+  .p-tab{flex:1;text-align:center;padding:8px 0;border-radius:11px;background:#f2f3f5;font-size:13px;font-weight:600;color:#8a8f98;cursor:pointer}
+  .p-tab.on{background:#eaf0ff;color:#2f6bff}
+  .p-body{flex:1;overflow:auto;border-top:1px solid #f0f0f2;font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:2;padding:8px 0}
+  .p-meta{flex:none;display:flex;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid #f0f0f2;font-size:12.5px;color:#8a8f98}
+  .dl{display:flex}
+  .dl .n{flex:0 0 34px;text-align:right;padding-right:9px;color:#c3c7ce;user-select:none}
+  .dl .c{flex:1;padding-right:12px;white-space:pre}
+  .dl.add{background:#e9f8ef}.dl.add .c{color:#157347}
+  .dl.del{background:#fdeef0}.dl.del .c{color:#b3252e}
+  .tab-page{display:none}.tab-page.on{display:block}
+  .file-open-head{font-family:-apple-system,"PingFang SC",sans-serif;display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;color:#8a8f98;border-bottom:1px solid #f0f0f2}
+  .file-open-head b{color:#171719;font-weight:600}
+  .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);background:rgba(23,23,25,.82);color:#fff;font-size:12.5px;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+  .toast.show{opacity:1}
+  .tips{max-width:440px}
+  .tips li{margin:0 0 9px;font-size:13px;line-height:1.75;color:#c6cad2}
+  .tips b{color:#fff}
+  .ans{max-width:760px;background:#17181c;border:1px solid #26272c;border-radius:14px;padding:16px 18px;margin-top:20px}
+  .ans h2{font-size:14.5px;margin:0 0 8px;color:#fff}
+  .ans p{font-size:13px;line-height:1.8;color:#c6cad2;margin:0 0 8px}
+  .ans b{color:#fff}
+</style>
+</head>
+<body>
+<h1>交互演示 v2 · 审查 / 打开 走侧边栏</h1>
+<div class="sub">改动：文件卡片里的「审查」「打开」不再在聊天里展开，而是从右侧滑出侧边栏（和网页版「打开标签页」同款交互）：审查页签显示 diff，打开页签显示文件内容。聊天里的 ✏️ 写入行保持你确认过的内联展开效果。</div>
+<div class="wrap">
+  <div class="phone">
+    <div class="statusbar"><span>06:20</span><span>▮▮▮ ⌁ 55</span></div>
+    <div class="top"><div class="back">‹</div><div class="title">zcode网页版手机控制</div><div class="pill">grok-4.6 · 高 ⌄</div><div style="font-size:16px">🖊</div></div>
+    <div class="scroll">
+      <div class="urow"><div class="ubub">审查应该走侧边栏，打开也一样，改一版</div></div>
+      <div class="meta"><span>复制</span><span>06:18</span></div>
+
+      <div class="work-h open" onclick="this.classList.toggle('open');document.getElementById('tl').style.display=this.classList.contains('open')?'flex':'none'">
+        已工作 6 分 12 秒 <span class="ch">⌄</span>
+      </div>
+      <div class="tl" id="tl">
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">🧠</span>思考 · 持续了几秒 <span class="ch">⌄</span></div>
+          <div class="bd">审查/打开走侧边栏，写入行保持内联展开，其他不动。</div>
+        </div>
+        <div class="ti open" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">✏️</span>写入 preview-round2.html <span class="add">+146</span> <span class="ch">⌄</span></div>
+          <div class="bd">&lt;!doctype html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;
+&lt;style&gt;*{box-sizing:border-box;margin:0}&lt;/style&gt;</div>
+        </div>
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">⌨️</span>cd C:/Users/58499/ZCodeProject/ZCo… <span class="ch">⌄</span></div>
+          <div class="bd">git add design/preview-round2.html &amp;&amp; git commit -q &amp;&amp; git push</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <p>改好了：审查和打开都从右侧滑出侧边栏，聊天里只保留写入行的内联展开。你点下面卡片的按钮试试。</p>
+      </div>
+
+      <div class="fcard open" id="fcard">
+        <div class="fcard-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="ch">⌄</span><b>1 个文件已更改</b>
+          <span class="add">+146</span><span class="del">-0</span>
+          <span class="undo" onclick="event.stopPropagation();undo()">⟲ 撤销</span>
+        </div>
+        <div class="files">
+          <div class="frow">
+            <span class="ic">📝</span>
+            <span class="fname">preview-round2.html</span>
+            <span class="fdir">design</span>
+            <span class="st">+146</span>
+            <button class="btn" onclick="openPanel('review')">审查</button>
+            <button class="btn" onclick="openPanel('open')">打开</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta"><span>复制</span><span>06:20</span></div>
+    </div>
+    <div class="composer"><div class="plus">＋</div><div class="ph">提出后续修改要求…</div><div class="send">↑</div></div>
+    <div class="homebar"></div>
+
+    <div class="dim" id="dim" onclick="closePanel()"></div>
+    <div class="panel" id="panel">
+      <div class="p-top"><div class="t">打开标签页</div><div class="x" onclick="closePanel()">✕</div></div>
+      <div class="p-tabs">
+        <div class="p-tab" id="tab-review" onclick="switchTab('review')">审查</div>
+        <div class="p-tab" id="tab-open" onclick="switchTab('open')">文件</div>
+      </div>
+      <div class="p-body">
+        <div class="tab-page" id="page-review">
+          <div class="dl add"><span class="n">1</span><span class="c">&lt;!doctype html&gt;</span></div>
+          <div class="dl add"><span class="n">2</span><span class="c">&lt;html lang="zh-CN"&gt;</span></div>
+          <div class="dl add"><span class="n">3</span><span class="c">&lt;head&gt;</span></div>
+          <div class="dl add"><span class="n">4</span><span class="c">&lt;meta charset="utf-8"&gt;</span></div>
+          <div class="dl del"><span class="n">5</span><span class="c">&lt;title&gt;旧版预览&lt;/title&gt;</span></div>
+          <div class="dl add"><span class="n">5</span><span class="c">&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</span></div>
+          <div class="dl add"><span class="n">6</span><span class="c">&lt;style&gt;</span></div>
+          <div class="dl add"><span class="n">7</span><span class="c">*{box-sizing:border-box;margin:0}</span></div>
+          <div class="dl add"><span class="n">8</span><span class="c">body{background:#0e0f12;color:#e8e9ec}</span></div>
+          <div class="dl add"><span class="n">9</span><span class="c">.row{display:flex;gap:26px}</span></div>
+          <div class="dl add"><span class="n">10</span><span class="c">.phone{width:340px;background:#fff}</span></div>
+        </div>
+        <div class="tab-page" id="page-open">
+          <div class="file-open-head">design › <b>preview-round2.html</b> <span style="color:#22a06b">+146</span></div>
+          <div class="dl"><span class="n">1</span><span class="c">&lt;!doctype html&gt;</span></div>
+          <div class="dl"><span class="n">2</span><span class="c">&lt;html lang="zh-CN"&gt;</span></div>
+          <div class="dl"><span class="n">3</span><span class="c">&lt;head&gt;</span></div>
+          <div class="dl"><span class="n">4</span><span class="c">&lt;meta charset="utf-8"&gt;</span></div>
+          <div class="dl"><span class="n">5</span><span class="c">&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</span></div>
+          <div class="dl"><span class="n">6</span><span class="c">&lt;style&gt;</span></div>
+          <div class="dl"><span class="n">7</span><span class="c">*{box-sizing:border-box;margin:0}</span></div>
+          <div class="dl"><span class="n">8</span><span class="c">body{background:#0e0f12;color:#e8e9ec}</span></div>
+          <div class="dl"><span class="n">9</span><span class="c">.row{display:flex;gap:26px}</span></div>
+          <div class="dl"><span class="n">10</span><span class="c">.phone{width:340px;background:#fff}</span></div>
+        </div>
+      </div>
+      <div class="p-meta"><span>在桌面端打开 ›</span><span style="margin-left:auto">preview-round2.html</span></div>
+    </div>
+    <div class="toast" id="toast">已请求桌面端撤销本次更改</div>
+  </div>
+
+  <div class="ans">
+    <h2>关于「能不能直接搬网页版的逻辑」——正面回答</h2>
+    <p><b>整套搬进来：做不到。</b>网页版是 React + 编译后的 CSS + 一整套状态库，必须跑在浏览器引擎里，没法作为 Swift 组件复用。能整套搬的方式只有「整页 WebView」（路线 A），那条路的代价（后台通知交接）我们已经试过一轮。</p>
+    <p><b>但可以搬三样东西，这轮的「不适配」大多是因为我只搬了两样：</b></p>
+    <p>1. <b>数据模型（已搬）</b>：行类型、bootstrap、fileChanges 这些协议字段都对齐了官方。<br>2. <b>视觉规范（已搬）</b>：图标、颜色、折叠交互都对。<br>3. <b>展示逻辑（之前是我自己发明的，这是 bug 主因）</b>：接下来凡是有现成官方行为的视图（审查 diff、打开文件、思考折叠规则、文件卡片），一律照官方的状态机写，不再自创。</p>
+    <p><b>再补一个务实的混合招</b>：像代码 diff、复杂表格这类「自己写永远差点意思」的视图，用本地生成的 HTML 塞进 WKWebView 渲染（官方 Kimi 也是这么干公式渲染的）——视觉对齐网页，一次写好不碎。上面侧边栏里的 diff 在 App 里就打算这么做。</p>
+    <p>如果你之后觉得原生这条路还是太累，路线 A（整页 WebView + 后台监控交接）的包一直在仓库里，随时能切回去。</p>
+  </div>
+
+  <ul class="tips">
+    <li><b>试试</b>：点文件行的「审查」→ 右侧滑出侧边栏，审查页签是 diff；点「文件」页签是打开效果；✕ 或点左边暗处关闭。聊天里的 ✏️ 写入行保持内联展开（你确认过的那个效果）。</li>
+    <li><b>实现对应</b>：侧边栏 = 右滑抽屉（和 ☰ 主侧边栏同组件）；diff/文件内容用本地 HTML + WKWebView 渲染；撤销按钮同 v1。</li>
+  </ul>
+</div>
+<script>
+  function openPanel(tab){
+    document.getElementById('panel').classList.add('show');
+    document.getElementById('dim').classList.add('show');
+    switchTab(tab);
+  }
+  function closePanel(){
+    document.getElementById('panel').classList.remove('show');
+    document.getElementById('dim').classList.remove('show');
+  }
+  function switchTab(tab){
+    document.getElementById('tab-review').classList.toggle('on', tab==='review');
+    document.getElementById('tab-open').classList.toggle('on', tab==='open');
+    document.getElementById('page-review').classList.toggle('on', tab==='review');
+    document.getElementById('page-open').classList.toggle('on', tab==='open');
+  }
+  let toastTimer;
+  function undo(){
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+</script>
+</body>
+</html>
