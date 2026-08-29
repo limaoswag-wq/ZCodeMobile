@@ -12,7 +12,7 @@
 
 - 扫描电脑 ZCode「移动端远程控制」二维码，或粘贴复制出来的 `https://zcode.z.ai/remote/v4?...` 地址
 - 连上后用原生界面看任务、发消息，不嵌官方网页
-- 圆润按钮、暖色 Claude 风
+- 圆润按钮、暖色风
 - 电脑 ZCode 必须开着，活还是在 Windows 上跑
 
 ## 电脑桥
@@ -55,7 +55,3 @@ Codemagic workflow：`zcode-mobile-unsigned-ipa`
 
 - App 横幅：默认开。手机 App 连着桥的时候，任务从进行中变成完成/出错会弹系统横幅
 - Bark：默认关。打开后填 `https://api.day.app/<key>`，电脑在任务结束时再推一条，杀 App 也能响
-
-## 和 Kimi 的关系
-
-按钮、气泡、输入条按 Kimi 的圆润信息架构来，暖色按 Claude。没有去改 Kimi 的包。聊天主路径是 UIKit，不是把 ZCode 网页塞进 WebView。
