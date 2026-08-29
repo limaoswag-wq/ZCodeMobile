@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>核实预览 · 正文排版 + 模型菜单 v2</title>
+<style>
+  *{box-sizing:border-box;margin:0}
+  body{background:#0e0f12;color:#e8e9ec;font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;padding:26px 22px 70px}
+  h1{font-size:20px} h2{font-size:15px;margin:34px 0 10px;color:#fff}
+  .sub{color:#9aa0aa;font-size:13px;margin:6px 0 4px}
+  .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:340px;background:#fff;border:9px solid #1b1c20;border-radius:44px;color:#171719;overflow:hidden;padding:52px 0 20px;box-shadow:0 16px 50px rgba(0,0,0,.5)}
+  .tag{font-size:12px;font-weight:700;margin:0 0 8px 2px;color:#fff}
+  .tag.bad{color:#ff8b8f}.tag.good{color:#5dd39e}
+  .note{font-size:11.5px;color:#8b919c;line-height:1.6;margin:0 0 10px 2px}
+  .chat{padding:0 16px;font-size:14.5px;line-height:1.62;color:#171719}
+  .chat p{margin:0 0 9px}
+  /* 坏例子：压成一坨 */
+  .flat{word-break:break-all}
+  /* 好例子：排版 */
+  .h1{font-size:18px;font-weight:700;margin:14px 0 8px}
+  .h2{font-size:16px;font-weight:700;margin:12px 0 7px}
+  ul{margin:0 0 10px;padding-left:2px;list-style:none}
+  ul li{margin:0 0 6px;padding-left:16px;position:relative}
+  ul li:before{content:"•";position:absolute;left:2px;color:#2f6bff;font-weight:700}
+  ol{margin:0 0 10px;padding-left:18px}
+  ol li{margin:0 0 7px}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#f2f3f5;border-radius:6px;padding:2px 6px}
+  .tbl{border:1px solid #ececee;border-radius:12px;overflow:hidden;margin:4px 0 12px}
+  .tbl .tr{display:flex;border-top:1px solid #ececee;font-size:13px}
+  .tbl .tr:first-child{border-top:none;background:#f7f7f8;font-weight:600}
+  .tbl .c{padding:8px 10px;flex:1}
+  .tbl .c:first-child{flex:0 0 44%;border-right:1px solid #ececee}
+  .plus{color:#22a06b;font-weight:600}.minus{color:#e5484d;font-weight:600}
+  .sw{font-size:13px;color:#8a8f98;margin:0 0 10px}
+  .sw b{color:#22a06b}
+  /* 模型弹窗 */
+  .popwrap{display:flex;gap:24px;flex-wrap:wrap}
+  .pop{width:270px;background:#fff;border-radius:18px;border:1px solid #ececee;box-shadow:0 18px 50px rgba(0,0,0,.25);overflow:hidden;color:#171719}
+  .p-head{font-size:11px;color:#b3b8c2;font-weight:600;padding:10px 16px 4px;text-transform:uppercase;letter-spacing:.4px}
+  .p-row{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:14px;font-weight:600}
+  .p-row .desc{font-size:11px;color:#8a8f98;font-weight:400;margin-top:1px}
+  .p-row .ck{margin-left:auto;color:#2f6bff;font-weight:700}
+  .p-row .chev{margin-left:auto;color:#b3b8c2;font-size:13px}
+  .p-div{height:1px;background:#ececee;margin:4px 12px}
+  .badge{font-size:9.5px;color:#2f6bff;background:#eaf0ff;border-radius:5px;padding:1px 5px;font-weight:600}
+  .thoughts{background:#f7f7f8;padding:4px 0 6px}
+  .thoughts .p-row{padding:8px 16px;font-size:13.5px}
+  .spec{background:#17181c;border:1px solid #26272c;border-radius:14px;padding:14px 16px;margin:14px 0 0;font-size:12px;color:#aab0ba;line-height:1.8}
+  .spec b{color:#e8e9ec}
+</style>
+</head>
+<body>
+<h1>核实预览（不改代码轮）</h1>
+<div class="sub">三块：① 正文为什么压成一坨（根因已找到 + 修复后效果预览）② 模型菜单为什么一堆重复（配置数据说话）③ 思考等级按模型动态（真实 variants 数据）</div>
+
+<!-- ================= 1 正文 ================= -->
+<h2>① 正文排版</h2>
+<div class="row">
+  <div>
+    <div class="tag bad">✕ 现状：压成一坨</div>
+    <p class="note">根因不在渲染器——渲染器支持标题/列表/表格。是聊天页把正文按「空格」拼成了一整行再送进渲染器，换行全没了，<code># 标题</code> 出现在句子中间就不被当成标题。这是我从旧版继承的拼行逻辑。</p>
+    <div class="phone"><div class="chat flat">新包好了： C:\Users\58499\Downloads\ZCode-1.2.3-native.ipa （573 KB），覆盖安装。 # 这轮改了什么 ① 思考行改回网页版的折叠样式 —— 「🧠 思考 · 持续了几秒 ⌄」默认收起，点一下展开灰字，跟图1网页版一致。终端命令、读取文件同样默认一行、点开看全文。 ② 新增「编辑了什么文件」行 —— 解析工具调用里的 file_path 和写入内容 ③ 正文 Markdown 排版 —— 之前表格整个被压成一坨 ④ 审查面板 —— 侧边栏「新对话」下面加了「审查 · N 个文件已更改 +A -B」卡片 - 审查面板的接口参数是我从网页端代码反推的 - 新建会话如果还报错，弹窗会带 status/reason</div></div>
+  </div>
+  <div>
+    <div class="tag good">✓ 修复后（下轮改一行拼行逻辑）</div>
+    <p class="note">同一段内容，保留段落结构送进渲染器：标题加粗放大、列表蓝点、表格渲染成卡片。渲染器现有能力就够，不需要重写。</p>
+    <div class="phone"><div class="chat">
+      <p>新包好了：<code>C:\Users\58499\Downloads\ZCode-1.2.3-native.ipa</code>（573 KB），覆盖安装。</p>
+      <div class="h1">这轮改了什么</div>
+      <div class="tbl">
+        <div class="tr"><div class="c">你报的问题</div><div class="c">修法</div></div>
+        <div class="tr"><div class="c">① 思考二次折叠</div><div class="c">去掉思考的小箭头，展开后直接可见</div></div>
+        <div class="tr"><div class="c">② 正文消失</div><div class="c">分组器改为每轮一个「已工作」</div></div>
+        <div class="tr"><div class="c">③ 模型菜单</div><div class="c">浮层卡片 + 自动定位供应商</div></div>
+      </div>
+      <div class="h2">两个已知风险，遇到别慌</div>
+      <ol>
+        <li>审查面板的接口参数（revision/logEpoch/target）是从网页端代码反推的——侧边栏不出现审查卡片就把 <code>relay_debug.json</code> 发我</li>
+        <li>新建会话如果还报错，弹窗会带 <code>status/reason</code>，同样发我</li>
+      </ol>
+      <p>测试顺序建议：先打开一个最近改过文件的任务看①②④，再随便发条带表格的消息看③。</p>
+    </div></div>
+  </div>
+</div>
+
+<!-- ================= 2 模型菜单 ================= -->
+<h2>② 模型菜单：只显示启用的供应商 + 思考等级按模型动态</h2>
+<p class="note">读了你的桌面端配置（v2/config.json）：一共 10 个供应商，其中 <b style="color:#e8e9ec">enabled: true 的只有 2 个</b>——「Z.ai - Coding Plan」（GLM-5.3-Flash 视觉）和「vlimi」（grok-4.6 / grok-4.5）。亚马逊是 enabled 未定义（网页版也显示它）。其余 BigModel×4、Z.ai API Key、英伟达、二狗全是禁用的——现在 App 把它们全平铺了，所以一堆重复。网页版的效果：选中的供应商展开模型，其他供应商收起一行。思考等级来自每个模型的 <code>reasoning.variants</code>：<b style="color:#e8e9ec">grok-4.6 = 低/中/高/极高，GLM-5.3-Flash = 低/高/最高</b>，glm-5-turbo 是 开/关——不再是固定四档。下面用真实数据模拟。</p>
+<div class="popwrap">
+  <div>
+    <div class="tag good">选中 grok-4.6（vlimi）→ 思考等级 低/中/高/极高</div>
+    <div class="pop">
+      <div class="p-head">Z.ai - Coding Plan</div>
+      <div class="p-row"><div><div class="desc" style="margin:0">GLM-5.3-Flash <span class="badge">视觉</span></div></div><span class="chev">›</span></div>
+      <div class="p-div"></div>
+      <div class="p-head" style="padding-top:8px">vlimi</div>
+      <div class="p-row"><div>grok-4.6 <span class="badge">视觉</span></div><span class="ck">✓</span></div>
+      <div class="p-row"><div>grok-4.5 <span class="badge">视觉</span></div><span class="chev">›</span></div>
+      <div class="p-div"></div>
+      <div class="p-row"><div>亚马逊</div><span class="chev">›</span></div>
+      <div class="p-div"></div>
+      <div class="p-row" style="color:#8a8f98">管理模型</div>
+      <div class="p-div"></div>
+      <div class="p-row">思考等级 · 高</div>
+      <div class="thoughts">
+        <div class="p-row">低</div>
+        <div class="p-row">中</div>
+        <div class="p-row">高 <span class="ck" style="margin-left:auto">✓</span></div>
+        <div class="p-row">极高</div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="tag good">切到 GLM-5.3-Flash（Z.ai）→ 思考等级只剩 低/高/最高</div>
+    <div class="pop">
+      <div class="p-head">Z.ai - Coding Plan</div>
+      <div class="p-row"><div>GLM-5.3-Flash <span class="badge">视觉</span></div><span class="ck">✓</span></div>
+      <div class="p-div"></div>
+      <div class="p-head" style="padding-top:8px">vlimi</div>
+      <div class="p-row"><div>grok-4.6 <span class="badge">视觉</span></div><span class="chev">›</span></div>
+      <div class="p-row"><div>grok-4.5 <span class="badge">视觉</span></div><span class="chev">›</span></div>
+      <div class="p-div"></div>
+      <div class="p-row"><div>亚马逊</div><span class="chev">›</span></div>
+      <div class="p-div"></div>
+      <div class="p-row" style="color:#8a8f98">管理模型</div>
+      <div class="p-div"></div>
+      <div class="p-row">思考等级 · 最高</div>
+      <div class="thoughts">
+        <div class="p-row">低</div>
+        <div class="p-row">高</div>
+        <div class="p-row">最高 <span class="ck" style="margin-left:auto">✓</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spec">
+  <b>实现要点（下轮改代码时按这个来）：</b><br>
+  1. 供应商过滤：<code>enabled === true</code>，或 enabled 未定义且配了凭据（亚马逊）；带 <code>systemDisabledReason</code> 的一律不显示<br>
+  2. 分组交互：当前选中供应商的模型直接展开（打勾），其他启用的供应商收成一行「名称 ›」，点开就地展开它的模型；底部「管理模型」<br>
+  3. 思考等级：读模型的 <code>reasoning.variants</code>，标签映射 low=低、medium=中、high=高、xhigh=极高、max=最高；没有 reasoning 字段的模型（如 GLM-5.2、grok-4.5 无 variants 时）隐藏思考等级行<br>
+  4. <b>顺带发现一个隐藏 bug</b>：现在切模型发的 thought 是中文「高」，官方命令要的是 variants 原值（如 <code>high</code>）——下轮一起修，否则切换其实没生效
+</div>
+</body>
+</html>
