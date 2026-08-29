@@ -73,6 +73,16 @@
   .dl .c{flex:1;padding-right:12px;white-space:pre}
   .dl.add{background:#e9f8ef}.dl.add .c{color:#157347}
   .dl.del{background:#fdeef0}.dl.del .c{color:#b3252e}
+  /* 语法高亮（WKWebView 本地 HTML 渲染的效果） */
+  .tg{color:#d05c65}.at{color:#a669d9}.st{color:#4f9e58}.pn{color:#98a0ab}.cm{color:#9aa5b1;font-style:italic}
+  .wv-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#2f6bff;background:#eaf0ff;border-radius:6px;padding:2px 7px}
+  /* 表格卡（WKWebView 渲染） */
+  .mdtable{border:1px solid #e6e7ea;border-radius:12px;overflow:hidden;margin:6px 0 10px;font-size:13px}
+  .mdtable table{width:100%;border-collapse:collapse}
+  .mdtable th{background:#f7f7f8;text-align:left;padding:9px 12px;font-weight:600;color:#171719}
+  .mdtable td{padding:9px 12px;border-top:1px solid #f0f0f2;color:#3a3d44;line-height:1.55}
+  .mdtable td:first-child{border-right:1px solid #f0f0f2;white-space:nowrap}
+  .callout{margin:10px 0 4px;padding:9px 12px;background:#f7f9ff;border:1px dashed #bcd0ff;border-radius:10px;font-size:11.5px;color:#3d6ce0;line-height:1.6}
   .tab-page{display:none}.tab-page.on{display:block}
   .file-open-head{font-family:-apple-system,"PingFang SC",sans-serif;display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;color:#8a8f98;border-bottom:1px solid #f0f0f2}
   .file-open-head b{color:#171719;font-weight:600}
@@ -123,6 +133,15 @@
 
       <div class="body">
         <p>改好了：审查和打开都从右侧滑出侧边栏，聊天里只保留写入行的内联展开。你点下面卡片的按钮试试。</p>
+        <div class="mdtable">
+          <table>
+            <tr><th>网页版行为</th><th>App 实现</th></tr>
+            <tr><td>审查 → 侧边面板看 diff</td><td>右侧滑出侧边栏，diff 用本地 HTML 渲染（语法高亮）</td></tr>
+            <tr><td>打开 → 桌面编辑器</td><td>侧边栏「文件」页签，只读查看</td></tr>
+            <tr><td>表格、代码块渲染</td><td>同样走 WKWebView 的本地 HTML，视觉对齐网页</td></tr>
+          </table>
+        </div>
+        <div class="callout">🧩 这张表格就是「本地 HTML + WKWebView」的渲染效果预览——App 里长这样，不再用原生控件硬画。</div>
       </div>
 
       <div class="fcard open" id="fcard">
@@ -150,37 +169,37 @@
 
     <div class="dim" id="dim" onclick="closePanel()"></div>
     <div class="panel" id="panel">
-      <div class="p-top"><div class="t">打开标签页</div><div class="x" onclick="closePanel()">✕</div></div>
+      <div class="p-top"><div class="t">打开标签页</div><span class="wv-badge">🧩 WKWebView · 本地 HTML</span><div class="x" onclick="closePanel()">✕</div></div>
       <div class="p-tabs">
         <div class="p-tab" id="tab-review" onclick="switchTab('review')">审查</div>
         <div class="p-tab" id="tab-open" onclick="switchTab('open')">文件</div>
       </div>
       <div class="p-body">
         <div class="tab-page" id="page-review">
-          <div class="dl add"><span class="n">1</span><span class="c">&lt;!doctype html&gt;</span></div>
-          <div class="dl add"><span class="n">2</span><span class="c">&lt;html lang="zh-CN"&gt;</span></div>
-          <div class="dl add"><span class="n">3</span><span class="c">&lt;head&gt;</span></div>
-          <div class="dl add"><span class="n">4</span><span class="c">&lt;meta charset="utf-8"&gt;</span></div>
-          <div class="dl del"><span class="n">5</span><span class="c">&lt;title&gt;旧版预览&lt;/title&gt;</span></div>
-          <div class="dl add"><span class="n">5</span><span class="c">&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</span></div>
-          <div class="dl add"><span class="n">6</span><span class="c">&lt;style&gt;</span></div>
-          <div class="dl add"><span class="n">7</span><span class="c">*{box-sizing:border-box;margin:0}</span></div>
-          <div class="dl add"><span class="n">8</span><span class="c">body{background:#0e0f12;color:#e8e9ec}</span></div>
-          <div class="dl add"><span class="n">9</span><span class="c">.row{display:flex;gap:26px}</span></div>
-          <div class="dl add"><span class="n">10</span><span class="c">.phone{width:340px;background:#fff}</span></div>
+          <div class="dl add"><span class="n">1</span><span class="c"><span class="pn">&lt;</span><span class="tg">!doctype</span> <span class="tg">html</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">2</span><span class="c"><span class="pn">&lt;</span><span class="tg">html</span> <span class="at">lang</span><span class="pn">=</span><span class="st">"zh-CN"</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">3</span><span class="c"><span class="pn">&lt;</span><span class="tg">head</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">4</span><span class="c">  <span class="pn">&lt;</span><span class="tg">meta</span> <span class="at">charset</span><span class="pn">=</span><span class="st">"utf-8"</span><span class="pn">&gt;</span></span></div>
+          <div class="dl del"><span class="n">5</span><span class="c">  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>旧版预览<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">5</span><span class="c">  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>核实预览 · 正文排版 + 模型菜单 v2<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">6</span><span class="c">  <span class="pn">&lt;</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
+          <div class="dl add"><span class="n">7</span><span class="c">    <span class="cm">/* 冷色主题 */</span></span></div>
+          <div class="dl add"><span class="n">8</span><span class="c">    <span class="at">--ink</span><span class="pn">:</span> <span class="st">#171719</span><span class="pn">;</span></span></div>
+          <div class="dl add"><span class="n">9</span><span class="c">    <span class="at">--accent</span><span class="pn">:</span> <span class="st">#2F6BFF</span><span class="pn">;</span></span></div>
+          <div class="dl add"><span class="n">10</span><span class="c">  <span class="pn">&lt;/</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
         </div>
         <div class="tab-page" id="page-open">
           <div class="file-open-head">design › <b>preview-round2.html</b> <span style="color:#22a06b">+146</span></div>
-          <div class="dl"><span class="n">1</span><span class="c">&lt;!doctype html&gt;</span></div>
-          <div class="dl"><span class="n">2</span><span class="c">&lt;html lang="zh-CN"&gt;</span></div>
-          <div class="dl"><span class="n">3</span><span class="c">&lt;head&gt;</span></div>
-          <div class="dl"><span class="n">4</span><span class="c">&lt;meta charset="utf-8"&gt;</span></div>
-          <div class="dl"><span class="n">5</span><span class="c">&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</span></div>
-          <div class="dl"><span class="n">6</span><span class="c">&lt;style&gt;</span></div>
-          <div class="dl"><span class="n">7</span><span class="c">*{box-sizing:border-box;margin:0}</span></div>
-          <div class="dl"><span class="n">8</span><span class="c">body{background:#0e0f12;color:#e8e9ec}</span></div>
-          <div class="dl"><span class="n">9</span><span class="c">.row{display:flex;gap:26px}</span></div>
-          <div class="dl"><span class="n">10</span><span class="c">.phone{width:340px;background:#fff}</span></div>
+          <div class="dl"><span class="n">1</span><span class="c"><span class="pn">&lt;</span><span class="tg">!doctype</span> <span class="tg">html</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">2</span><span class="c"><span class="pn">&lt;</span><span class="tg">html</span> <span class="at">lang</span><span class="pn">=</span><span class="st">"zh-CN"</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">3</span><span class="c"><span class="pn">&lt;</span><span class="tg">head</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">4</span><span class="c">  <span class="pn">&lt;</span><span class="tg">meta</span> <span class="at">charset</span><span class="pn">=</span><span class="st">"utf-8"</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">5</span><span class="c">  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>核实预览 · 正文排版 + 模型菜单 v2<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">6</span><span class="c">  <span class="pn">&lt;</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">7</span><span class="c">    <span class="at">--ink</span><span class="pn">:</span> <span class="st">#171719</span><span class="pn">;</span></span></div>
+          <div class="dl"><span class="n">8</span><span class="c">    <span class="at">--accent</span><span class="pn">:</span> <span class="st">#2F6BFF</span><span class="pn">;</span></span></div>
+          <div class="dl"><span class="n">9</span><span class="c">  <span class="pn">&lt;/</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
+          <div class="dl"><span class="n">10</span><span class="c"><span class="pn">&lt;/</span><span class="tg">html</span><span class="pn">&gt;</span></span></div>
         </div>
       </div>
       <div class="p-meta"><span>在桌面端打开 ›</span><span style="margin-left:auto">preview-round2.html</span></div>
