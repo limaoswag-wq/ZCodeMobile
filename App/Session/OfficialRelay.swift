@@ -523,7 +523,11 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         let send = { [weak self] in
             self?.socket?.send(.string(string)) { _ in }
         }
-        if Thread.isMainThread { send() } else { DispatchQueue.main.async(execute: send) }
+        if Thread.isMainThread {
+            send()
+        } else {
+            DispatchQueue.main.async { send() }
+        }
     }
 
     private func startHeartbeat() {
