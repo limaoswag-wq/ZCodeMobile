@@ -243,7 +243,7 @@ struct SidebarDrawer: View {
     }
 
     private func fileRow(_ file: FileChangeInfo) -> some View {
-        let name = file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last ?? file.path
+        let name = file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last.map(String.init) ?? file.path
         return HStack(spacing: 8) {
             Text(String(file.status.prefix(1)))
                 .font(.system(size: 11, weight: .bold))
