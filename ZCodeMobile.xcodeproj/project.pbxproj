@@ -1,0 +1,401 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		ABD1889B9CB341E4A5A46A09 /* ZCodeMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63CDD7F02BD4953BB2E4046 /* ZCodeMobileApp.swift */; };
+		DCE13678099E4EF4AB1816ED /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7663641D32F54721A7633CAC /* Theme.swift */; };
+		BE2B04004343484AAA0DC520 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6726D0E3D25472CA5C22173 /* Models.swift */; };
+		8FA9261120174D999C0F5F6C /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B79CFD896C444C78BDEF0D32 /* AppSettings.swift */; };
+		392D02C644D3473AB9AC2978 /* BridgeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED03B4E8918446238F0958D4 /* BridgeClient.swift */; };
+		F1ACF820A3034A18A545FE05 /* OfficialLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6ABDDD7E445424C91E28ED8 /* OfficialLink.swift */; };
+		165A8AA5996A4503BCF5C70F /* OfficialRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3396F9721A4A70BF36DFF0 /* OfficialRelay.swift */; };
+		46A60D82FDC94115993A7F70 /* VSCodeIPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED5E42F245DA4C01BB6DC285 /* VSCodeIPC.swift */; };
+		6B51204F0A8D42998BCA0B37 /* RpcFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4DF241FFD143BCA2625636 /* RpcFrame.swift */; };
+		DD51F846F7494F85B2203379 /* NotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEFE52570FF542D2A981EA4C /* NotificationCenter.swift */; };
+		51308EEAA04E4150AE6730F1 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43C21473B844EF9AD19DD9E /* RootView.swift */; };
+		ECCCFED34CD74C8DBC08A620 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F28CE43BF84C6F8774AD5F /* MarkdownRenderer.swift */; };
+		580A75FC62084C9BAF3D74FF /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03996474165746B5AF28B892 /* ComposerView.swift */; };
+		7744E408B30E449BB1BDDF59 /* InsertWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A88C0B5B8574A858BC44763 /* InsertWebView.swift */; };
+		DEE6644A3436478A863334F1 /* ChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0983762AC0D4489ABFC4619 /* ChatViewController.swift */; };
+		41F04393F52848329FB04776 /* QRScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD9240F355E4CB29865B898 /* QRScannerViewController.swift */; };
+		607BCB073E69455796F5C060 /* SilentAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13B25BE40234078859CC69B /* SilentAudio.swift */; };
+		C16C9221AE054BEE89432614 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B877BC28A03492F9B8F9E4E /* Assets.xcassets */; };
+		E3E2134FEACB41B9A585247E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CB01F7127CDB42DAB595F5A1 /* PrivacyInfo.xcprivacy */; };
+		0F3FA101BB964618ADFDF94B /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE2AAF93093E473CBE656041 /* UIKit.framework */; };
+		C73F631ABD4F4A739567507B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5685A26C27D14C23B29BEC07 /* SwiftUI.framework */; };
+		1BDEDB0144594B1E9FF28F88 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCFD0E6A023A4FF599EEB04B /* UserNotifications.framework */; };
+		757ED325885C4AA489D1E6FA /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2767E1FA3A8647149BA72228 /* AVFoundation.framework */; };
+		C29ABD69E6AE45E5A81CF747 /* Vision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C28F5688EE6A4DFFBD1A6E5B /* Vision.framework */; };
+		042206DC17924A4AB3EF8198 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CD86DA84A8FA456BB16B3D63 /* PhotosUI.framework */; };
+		1D798A1052604B5AA03E4503 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9886661A81E4CBE87EBD274 /* CryptoKit.framework */; };
+		E39424669B774BDE970A118D /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0C55A4AC428D427D82B9AD39 /* WebKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C9FCCC572E424F88B57DF75A /* ZCode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZCode.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B877BC28A03492F9B8F9E4E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CB01F7127CDB42DAB595F5A1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C2E5C9BD67694686A1330844 /* ZCodeMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZCodeMobile.entitlements; sourceTree = "<group>"; };
+		BFBFBDAD0DF44BF9B459F0C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E63CDD7F02BD4953BB2E4046 /* ZCodeMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZCodeMobileApp.swift; sourceTree = "<group>"; };
+		7663641D32F54721A7633CAC /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B6726D0E3D25472CA5C22173 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B79CFD896C444C78BDEF0D32 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		ED03B4E8918446238F0958D4 /* BridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeClient.swift; sourceTree = "<group>"; };
+		F6ABDDD7E445424C91E28ED8 /* OfficialLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialLink.swift; sourceTree = "<group>"; };
+		FF3396F9721A4A70BF36DFF0 /* OfficialRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialRelay.swift; sourceTree = "<group>"; };
+		ED5E42F245DA4C01BB6DC285 /* VSCodeIPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSCodeIPC.swift; sourceTree = "<group>"; };
+		3D4DF241FFD143BCA2625636 /* RpcFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RpcFrame.swift; sourceTree = "<group>"; };
+		BEFE52570FF542D2A981EA4C /* NotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenter.swift; sourceTree = "<group>"; };
+		D43C21473B844EF9AD19DD9E /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		76F28CE43BF84C6F8774AD5F /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		03996474165746B5AF28B892 /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
+		2A88C0B5B8574A858BC44763 /* InsertWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertWebView.swift; sourceTree = "<group>"; };
+		B0983762AC0D4489ABFC4619 /* ChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewController.swift; sourceTree = "<group>"; };
+		FFD9240F355E4CB29865B898 /* QRScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerViewController.swift; sourceTree = "<group>"; };
+		D13B25BE40234078859CC69B /* SilentAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilentAudio.swift; sourceTree = "<group>"; };
+		BE2AAF93093E473CBE656041 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		5685A26C27D14C23B29BEC07 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		FCFD0E6A023A4FF599EEB04B /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		2767E1FA3A8647149BA72228 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		C28F5688EE6A4DFFBD1A6E5B /* Vision.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Vision.framework; path = System/Library/Frameworks/Vision.framework; sourceTree = SDKROOT; };
+		CD86DA84A8FA456BB16B3D63 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
+		C9886661A81E4CBE87EBD274 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+		0C55A4AC428D427D82B9AD39 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		476A91B1FE41484FB34145E1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0F3FA101BB964618ADFDF94B /* UIKit.framework in Frameworks */,
+				C73F631ABD4F4A739567507B /* SwiftUI.framework in Frameworks */,
+				1BDEDB0144594B1E9FF28F88 /* UserNotifications.framework in Frameworks */,
+				757ED325885C4AA489D1E6FA /* AVFoundation.framework in Frameworks */,
+				C29ABD69E6AE45E5A81CF747 /* Vision.framework in Frameworks */,
+				042206DC17924A4AB3EF8198 /* PhotosUI.framework in Frameworks */,
+				1D798A1052604B5AA03E4503 /* CryptoKit.framework in Frameworks */,
+				E39424669B774BDE970A118D /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		37ECCB842ECC4C28A878D5AA = {
+			isa = PBXGroup;
+			children = (
+				7DEDCE70E00A44F0B2123A26 /* App */,
+				9E96F829AF504F988E8DDA7F /* Frameworks */,
+				0071D46622B144BBAC79B493 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7DEDCE70E00A44F0B2123A26 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E63CDD7F02BD4953BB2E4046 /* ZCodeMobileApp.swift */,
+				73A3A033CBFE4F45AADC4A0F /* Theme */,
+				9F398742433D4037BC541E48 /* Session */,
+				8A2EAEB1C2AD4E38B180CF30 /* UI */,
+				166E3341609E439C978D5A1C /* Chat */,
+				6A864EE6C5D745A38B75C36B /* Audio */,
+				7B877BC28A03492F9B8F9E4E /* Assets.xcassets */,
+				CB01F7127CDB42DAB595F5A1 /* PrivacyInfo.xcprivacy */,
+				C2E5C9BD67694686A1330844 /* ZCodeMobile.entitlements */,
+				BFBFBDAD0DF44BF9B459F0C1 /* Info.plist */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		73A3A033CBFE4F45AADC4A0F /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				7663641D32F54721A7633CAC /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		9F398742433D4037BC541E48 /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				B6726D0E3D25472CA5C22173 /* Models.swift */,
+				B79CFD896C444C78BDEF0D32 /* AppSettings.swift */,
+				ED03B4E8918446238F0958D4 /* BridgeClient.swift */,
+				F6ABDDD7E445424C91E28ED8 /* OfficialLink.swift */,
+				FF3396F9721A4A70BF36DFF0 /* OfficialRelay.swift */,
+				ED5E42F245DA4C01BB6DC285 /* VSCodeIPC.swift */,
+				3D4DF241FFD143BCA2625636 /* RpcFrame.swift */,
+				BEFE52570FF542D2A981EA4C /* NotificationCenter.swift */,
+			);
+			path = Session;
+			sourceTree = "<group>";
+		};
+		8A2EAEB1C2AD4E38B180CF30 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				D43C21473B844EF9AD19DD9E /* RootView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		166E3341609E439C978D5A1C /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				76F28CE43BF84C6F8774AD5F /* MarkdownRenderer.swift */,
+				03996474165746B5AF28B892 /* ComposerView.swift */,
+				2A88C0B5B8574A858BC44763 /* InsertWebView.swift */,
+				B0983762AC0D4489ABFC4619 /* ChatViewController.swift */,
+				FFD9240F355E4CB29865B898 /* QRScannerViewController.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		6A864EE6C5D745A38B75C36B /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				D13B25BE40234078859CC69B /* SilentAudio.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		0071D46622B144BBAC79B493 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C9FCCC572E424F88B57DF75A /* ZCode.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9E96F829AF504F988E8DDA7F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BE2AAF93093E473CBE656041 /* UIKit.framework */,
+				5685A26C27D14C23B29BEC07 /* SwiftUI.framework */,
+				FCFD0E6A023A4FF599EEB04B /* UserNotifications.framework */,
+				2767E1FA3A8647149BA72228 /* AVFoundation.framework */,
+				C28F5688EE6A4DFFBD1A6E5B /* Vision.framework */,
+				CD86DA84A8FA456BB16B3D63 /* PhotosUI.framework */,
+				C9886661A81E4CBE87EBD274 /* CryptoKit.framework */,
+				0C55A4AC428D427D82B9AD39 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		896256FF1B7A4726BC37F924 /* ZCode */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0480F1AC5025415981C29807 /* Build configuration list for PBXNativeTarget "ZCode" */;
+			buildPhases = (
+				7EACBD5428D44CD9BC25B0F9 /* Sources */,
+				476A91B1FE41484FB34145E1 /* Frameworks */,
+				A2F14961C0934BD885696DAD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZCode;
+			productName = ZCode;
+			productReference = C9FCCC572E424F88B57DF75A /* ZCode.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		272BB0DFA40247728305DDDB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					896256FF1B7A4726BC37F924 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = FD0F9AC156D243E394D41E65 /* Build configuration list for PBXProject "ZCodeMobile" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = 37ECCB842ECC4C28A878D5AA;
+			productRefGroup = 0071D46622B144BBAC79B493 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				896256FF1B7A4726BC37F924 /* ZCode */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A2F14961C0934BD885696DAD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C16C9221AE054BEE89432614 /* Assets.xcassets in Resources */,
+				E3E2134FEACB41B9A585247E /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7EACBD5428D44CD9BC25B0F9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABD1889B9CB341E4A5A46A09 /* ZCodeMobileApp.swift in Sources */,
+				DCE13678099E4EF4AB1816ED /* Theme.swift in Sources */,
+				BE2B04004343484AAA0DC520 /* Models.swift in Sources */,
+				8FA9261120174D999C0F5F6C /* AppSettings.swift in Sources */,
+				392D02C644D3473AB9AC2978 /* BridgeClient.swift in Sources */,
+				F1ACF820A3034A18A545FE05 /* OfficialLink.swift in Sources */,
+				165A8AA5996A4503BCF5C70F /* OfficialRelay.swift in Sources */,
+				46A60D82FDC94115993A7F70 /* VSCodeIPC.swift in Sources */,
+				6B51204F0A8D42998BCA0B37 /* RpcFrame.swift in Sources */,
+				DD51F846F7494F85B2203379 /* NotificationCenter.swift in Sources */,
+				51308EEAA04E4150AE6730F1 /* RootView.swift in Sources */,
+				ECCCFED34CD74C8DBC08A620 /* MarkdownRenderer.swift in Sources */,
+				580A75FC62084C9BAF3D74FF /* ComposerView.swift in Sources */,
+				7744E408B30E449BB1BDDF59 /* InsertWebView.swift in Sources */,
+				DEE6644A3436478A863334F1 /* ChatViewController.swift in Sources */,
+				41F04393F52848329FB04776 /* QRScannerViewController.swift in Sources */,
+				607BCB073E69455796F5C060 /* SilentAudio.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		972185EABA214070AB6D805F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		87820B1ED13A4C4F95EA1D77 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		BBDA12078E8C48F0A2920B9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/ZCodeMobile.entitlements;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.zcode.mobile;
+				PRODUCT_NAME = ZCode;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CCB48903AA6B452CAA9CB5B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/ZCodeMobile.entitlements;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.zcode.mobile;
+				PRODUCT_NAME = ZCode;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FD0F9AC156D243E394D41E65 /* Build configuration list for PBXProject "ZCodeMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				972185EABA214070AB6D805F /* Debug */,
+				87820B1ED13A4C4F95EA1D77 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0480F1AC5025415981C29807 /* Build configuration list for PBXNativeTarget "ZCode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBDA12078E8C48F0A2920B9F /* Debug */,
+				CCB48903AA6B452CAA9CB5B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 272BB0DFA40247728305DDDB /* Project object */;
+}

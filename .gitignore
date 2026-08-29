@@ -1,0 +1,10 @@
+.DS_Store
+build/
+DerivedData/
+*.ipa
+bridge/config.json
+bridge/__pycache__/
+*.pyc
+.idea/
+.vscode/
+xcuserdata/

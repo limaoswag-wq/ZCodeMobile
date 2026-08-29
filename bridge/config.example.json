@@ -1,0 +1,11 @@
+{
+  "port": 18765,
+  "token": "replace-with-a-random-token",
+  "zcodeHome": "C:\\Users\\58499\\.zcode",
+  "zcodeCallbackUrl": "",
+  "zcodeBotId": "",
+  "zcodeUserId": "zcode-mobile",
+  "zcodeWebhookSecret": "",
+  "barkEnabled": false,
+  "barkUrl": ""
+}
