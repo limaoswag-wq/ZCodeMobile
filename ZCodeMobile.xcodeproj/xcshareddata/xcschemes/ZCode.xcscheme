@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "3A01CF9AABFA4B5B8CAD0A5C"
+               BlueprintIdentifier = "2E752D93D7764B7F93696F13"
                BuildableName = "ZCode.app"
                BlueprintName = "ZCode"
                ReferencedContainer = "container:ZCodeMobile.xcodeproj">
@@ -43,7 +43,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3A01CF9AABFA4B5B8CAD0A5C"
+            BlueprintIdentifier = "2E752D93D7764B7F93696F13"
             BuildableName = "ZCode.app"
             BlueprintName = "ZCode"
             ReferencedContainer = "container:ZCodeMobile.xcodeproj">
@@ -60,7 +60,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3A01CF9AABFA4B5B8CAD0A5C"
+            BlueprintIdentifier = "2E752D93D7764B7F93696F13"
             BuildableName = "ZCode.app"
             BlueprintName = "ZCode"
             ReferencedContainer = "container:ZCodeMobile.xcodeproj">

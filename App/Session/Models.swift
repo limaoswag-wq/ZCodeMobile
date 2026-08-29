@@ -38,13 +38,15 @@ struct ChatBlock: Codable, Identifiable, Hashable {
     var text: String
     var tool: String?
     var status: String?
+    var path: String?
 
-    init(id: String, kind: String, text: String, tool: String? = nil, status: String? = nil) {
+    init(id: String, kind: String, text: String, tool: String? = nil, status: String? = nil, path: String? = nil) {
         self.id = id
         self.kind = kind
         self.text = text
         self.tool = tool
         self.status = status
+        self.path = path
     }
 }
 
@@ -61,13 +63,14 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     }
 }
 
-/// 时间线里的一条过程记录（思考 / 技能 / 终端 / 读取）。
+/// 时间线里的一条过程记录（思考 / 技能 / 终端 / 读取 / 编辑）。
 struct WorkItem: Identifiable, Hashable {
     enum Kind: String {
         case thinking
         case skill
         case terminal
         case read
+        case edit
         case text
     }
 
@@ -76,6 +79,23 @@ struct WorkItem: Identifiable, Hashable {
     var title: String
     var detail: String
     var createdAt: Int
+
+    /// 这类行默认折叠、点开看详情。
+    var collapsible: Bool {
+        switch kind {
+        case .thinking, .terminal, .read, .edit: return true
+        default: return false
+        }
+    }
+}
+
+/// 审查面板里的一条文件改动。
+struct FileChangeInfo: Identifiable, Hashable {
+    var id: String { path }
+    var path: String
+    var status: String
+    var additions: Int
+    var deletions: Int
 }
 
 /// 聊天页的一条展示内容：用户气泡 / 已工作折叠块 / 正文。
@@ -227,13 +247,18 @@ enum EntryBuilder {
                     foldPendingIntoTurn()
                     if items.isEmpty { turnStart = message.createdAt }
                     turnEnd = message.createdAt
-                    let name = block.tool ?? ""
+                    let name = (block.tool ?? "").lowercased()
                     let kind: WorkItem.Kind
                     let title: String
-                    if name.lowercased().contains("skill") {
+                    if let path = block.path {
+                        let base = path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last.map(String.init) ?? path
+                        if name.contains("read") {
+                            kind = .read; title = "读取 \(base)"
+                        } else {
+                            kind = .edit; title = "编辑 \(base)"
+                        }
+                    } else if name.contains("skill") {
                         kind = .skill; title = "技能 \(block.text)"
-                    } else if name.lowercased().contains("read") {
-                        kind = .read; title = "读取 \(block.text)"
                     } else {
                         kind = .terminal; title = block.text
                     }

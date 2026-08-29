@@ -9,6 +9,7 @@ struct MarkdownSegment {
         case code
         case mermaid
         case divider
+        case table([[String]])
     }
 
     var kind: Kind
@@ -23,6 +24,7 @@ enum MarkdownRenderer {
         var inCode = false
         var code: [String] = []
         var codeLanguage = ""
+        var table: [[String]] = []
 
         func flushParagraph() {
             let text = paragraph.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,9 +34,34 @@ enum MarkdownRenderer {
             paragraph.removeAll()
         }
 
+        func flushTable() {
+            if table.count >= 2 {
+                result.append(MarkdownSegment(kind: .table(table)))
+            } else if table.count == 1 {
+                paragraph.append(table[0].joined(separator: " | "))
+            }
+            table.removeAll()
+        }
+
+        func isSeparatorRow(_ cells: [String]) -> Bool {
+            !cells.isEmpty && cells.allSatisfy { $0.range(of: "^[-:\\s]+$", options: .regularExpression) != nil }
+        }
+
+        func parseRow(_ line: String) -> [String]? {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("|") else { return nil }
+            var cells = trimmed.split(separator: "|", omittingEmptySubsequences: false).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            if let first = cells.first, first.isEmpty { cells.removeFirst() }
+            if let last = cells.last, last.isEmpty { cells.removeLast() }
+            return cells
+        }
+
         for raw in lines {
             let line = raw
             if line.hasPrefix("```") {
+                flushTable()
                 if inCode {
                     let language = codeLanguage.lowercased()
                     let kind: MarkdownSegment.Kind = language == "mermaid" ? .mermaid : .code
@@ -53,6 +80,13 @@ enum MarkdownRenderer {
                 code.append(line)
                 continue
             }
+            if let cells = parseRow(line) {
+                flushParagraph()
+                if isSeparatorRow(cells) { continue }
+                table.append(cells)
+                continue
+            }
+            if !table.isEmpty { flushTable() }
             if line.trimmingCharacters(in: .whitespaces).isEmpty {
                 flushParagraph()
                 continue
@@ -69,6 +103,9 @@ enum MarkdownRenderer {
             } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
                 flushParagraph()
                 result.append(MarkdownSegment(kind: .bullet, text: String(line.dropFirst(2))))
+            } else if let numbered = line.range(of: "^\\d+\\. ", options: .regularExpression) {
+                flushParagraph()
+                result.append(MarkdownSegment(kind: .bullet, text: String(line[numbered.upperBound...])))
             } else if line.hasPrefix("> ") {
                 flushParagraph()
                 result.append(MarkdownSegment(kind: .quote, text: String(line.dropFirst(2))))
@@ -83,6 +120,7 @@ enum MarkdownRenderer {
             let kind: MarkdownSegment.Kind = codeLanguage.lowercased() == "mermaid" ? .mermaid : .code
             result.append(MarkdownSegment(kind: kind, text: code.joined(separator: "\n")))
         }
+        flushTable()
         flushParagraph()
         return result
     }
@@ -118,6 +156,26 @@ enum MarkdownRenderer {
                 ]))
             case .divider:
                 output.append(NSAttributedString(string: " ", attributes: [.font: UIFont.systemFont(ofSize: 8)]))
+            case .table(let rows):
+                for (rowIndex, cells) in rows.enumerated() {
+                    if rowIndex > 0 {
+                        output.append(NSAttributedString(string: "\n", attributes: [
+                            .font: UIFont.systemFont(ofSize: 4)
+                        ]))
+                    }
+                    let isHeader = rowIndex == 0
+                    let line = NSMutableAttributedString()
+                    for (cellIndex, cell) in cells.enumerated() {
+                        if cellIndex > 0 {
+                            line.append(NSAttributedString(string: "   ·   ", attributes: [
+                                .font: UIFont.systemFont(ofSize: 13),
+                                .foregroundColor: ZUIColor.inkFaint(trait)
+                            ]))
+                        }
+                        line.append(styled(inline(cell, ink: ink), size: 14, weight: isHeader ? .semibold : .regular, color: isHeader ? ink : muted, spacing: 2))
+                    }
+                    output.append(line)
+                }
             }
         }
         return output
@@ -127,7 +185,7 @@ enum MarkdownRenderer {
         let mutable = NSMutableAttributedString(attributedString: text)
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = spacing
-        paragraph.paragraphSpacing = 6
+        paragraph.paragraphSpacing = 8
         mutable.addAttributes([
             .font: UIFont.systemFont(ofSize: size, weight: weight),
             .foregroundColor: color,

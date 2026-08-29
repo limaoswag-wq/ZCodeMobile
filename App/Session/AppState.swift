@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
     @Published private(set) var activeTaskId: String?
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var providers: [ModelProviderInfo] = []
+    @Published private(set) var fileChanges: [FileChangeInfo] = []
     @Published var toast: String?
 
     /// 当前选中的模型 / 思考等级（本机偏好，切换时下发 switchModelConfig）。
@@ -68,6 +69,7 @@ final class AppState: ObservableObject {
             guard let self, taskId == self.activeTaskId else { return }
             self.messages = messages
             self.lastLoadedTaskId = taskId
+            self.relay.fetchFileChanges(for: taskId)
         }
         relay.onSendResult = { [weak self] ok, error in
             guard let self else { return }
@@ -76,6 +78,10 @@ final class AppState: ObservableObject {
         relay.onProviders = { [weak self] in
             guard let self else { return }
             self.providers = self.relay.providers
+        }
+        relay.onFileChanges = { [weak self] files in
+            guard let self else { return }
+            self.fileChanges = files
         }
     }
 

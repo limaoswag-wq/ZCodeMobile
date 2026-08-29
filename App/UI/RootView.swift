@@ -236,6 +236,69 @@ struct SidebarDrawer: View {
         .transition(.move(edge: .leading))
     }
 
+    private var reviewSection: some View {
+        let adds = app.fileChanges.reduce(0) { $0 + $1.additions }
+        let dels = app.fileChanges.reduce(0) { $0 + $1.deletions }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Text("审查 · \(app.fileChanges.count) 个文件已更改")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ZTheme.ink)
+                Text("+\(adds)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ZTheme.ok)
+                Text("-\(dels)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ZTheme.danger)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+
+            ForEach(Array(app.fileChanges.prefix(12).enumerated()), id: \.element.id) { index, file in
+                if index > 0 {
+                    Rectangle().fill(ZTheme.line).frame(height: 0.7)
+                        .padding(.leading, 12)
+                }
+                HStack(spacing: 8) {
+                    Text(String(file.status.prefix(1)))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 18, height: 18)
+                        .background(file.status.hasPrefix("D") ? ZTheme.danger : (file.status.hasPrefix("A") ? ZTheme.ok : ZTheme.accent),
+                                    in: RoundedRectangle(cornerRadius: 5))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last ?? file.path)
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(ZTheme.ink)
+                            .lineLimit(1)
+                        Text(file.path)
+                            .font(.system(size: 10))
+                            .foregroundStyle(ZTheme.inkFaint)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 6)
+                    if file.additions > 0 {
+                        Text("+\(file.additions)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ZTheme.ok)
+                    }
+                    if file.deletions > 0 {
+                        Text("-\(file.deletions)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ZTheme.danger)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+            }
+        }
+        .background(ZTheme.chip, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+    }
+
     private var pinned: [TaskSummary] { app.tasks.filter(\.pinned) }
     private var history: [TaskSummary] { app.tasks.filter { !$0.pinned } }
 
@@ -275,6 +338,10 @@ struct SidebarDrawer: View {
                     .background(ZTheme.accentWeak, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
             .padding(.horizontal, 14)
+
+            if !app.fileChanges.isEmpty {
+                reviewSection
+            }
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {

@@ -20,6 +20,7 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     private var observer: NSObjectProtocol?
     private var runningTimer: Timer?
     private var expandedWorks: Set<String> = []
+    private var expandedItems: Set<String> = []
     private var lastSignature = ""
 
     enum ChatRow {
@@ -203,6 +204,7 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                 endMs: endMs,
                 running: running,
                 expanded: expandedWorks.contains(id),
+                expandedItems: expandedItems,
                 trait: traitCollection,
                 onToggleWork: { [weak self] in
                     guard let self else { return }
@@ -210,6 +212,17 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                         self.expandedWorks.remove(id)
                     } else {
                         self.expandedWorks.insert(id)
+                    }
+                    self.table.beginUpdates()
+                    self.table.reloadRows(at: [indexPath], with: .none)
+                    self.table.endUpdates()
+                },
+                onToggleItem: { [weak self] itemId in
+                    guard let self else { return }
+                    if self.expandedItems.contains(itemId) {
+                        self.expandedItems.remove(itemId)
+                    } else {
+                        self.expandedItems.insert(itemId)
                     }
                     self.table.beginUpdates()
                     self.table.reloadRows(at: [indexPath], with: .none)
@@ -539,6 +552,8 @@ final class UserCell: UITableViewCell {
 final class WorkCell: UITableViewCell {
     static let id = "work"
     private var onToggleWork: (() -> Void)?
+    private var onToggleItem: ((String) -> Void)?
+    private var itemHandlers: [UIButton: String] = [:]
     private var workId = ""
     private var startMs = 0
     private var endMs = 0
@@ -612,8 +627,10 @@ final class WorkCell: UITableViewCell {
         endMs: Int,
         running: Bool,
         expanded: Bool,
+        expandedItems: Set<String>,
         trait: UITraitCollection,
-        onToggleWork: @escaping () -> Void
+        onToggleWork: @escaping () -> Void,
+        onToggleItem: @escaping (String) -> Void
     ) {
         self.workId = id
         self.startMs = startMs
@@ -621,6 +638,7 @@ final class WorkCell: UITableViewCell {
         self.running = running
         self.expanded = expanded
         self.onToggleWork = onToggleWork
+        self.onToggleItem = onToggleItem
 
         headerButton.setTitle("  已工作 \(durationText())", for: .normal)
         headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
@@ -638,7 +656,15 @@ final class WorkCell: UITableViewCell {
         for item in items {
             switch item.kind {
             case .thinking:
-                container.addArrangedSubview(makeThinkingRow(item, trait: trait))
+                container.addArrangedSubview(makeFoldRow(
+                    symbol: "brain.head.profile",
+                    title: item.title,
+                    detail: item.detail,
+                    monoDetail: false,
+                    expanded: expandedItems.contains(item.id),
+                    itemId: item.id,
+                    trait: trait
+                ))
             case .skill:
                 container.addArrangedSubview(makeIconRow(
                     symbol: "wand.and.stars",
@@ -646,13 +672,36 @@ final class WorkCell: UITableViewCell {
                     trait: trait
                 ))
             case .read:
-                container.addArrangedSubview(makeIconRow(
+                container.addArrangedSubview(makeFoldRow(
                     symbol: "magnifyingglass",
-                    parts: [("读取 ", ZUIColor.inkSoft(trait), false), (item.title.replacingOccurrences(of: "读取 ", with: ""), ZUIColor.accent(trait), false)],
+                    title: item.title,
+                    detail: item.detail.isEmpty ? nil : item.detail,
+                    monoDetail: false,
+                    expanded: expandedItems.contains(item.id),
+                    itemId: item.id,
+                    trait: trait
+                ))
+            case .edit:
+                container.addArrangedSubview(makeFoldRow(
+                    symbol: "square.and.pencil",
+                    title: item.title,
+                    detail: item.detail,
+                    monoDetail: true,
+                    expanded: expandedItems.contains(item.id),
+                    itemId: item.id,
                     trait: trait
                 ))
             case .terminal:
-                container.addArrangedSubview(makeTerminalRow(item.detail, trait: trait))
+                let firstLine = item.detail.split(separator: "\n").first.map(String.init) ?? item.detail
+                container.addArrangedSubview(makeFoldRow(
+                    symbol: "terminal",
+                    title: firstLine,
+                    detail: item.detail,
+                    monoDetail: true,
+                    expanded: expandedItems.contains(item.id),
+                    itemId: item.id,
+                    trait: trait
+                ))
             case .text:
                 container.addArrangedSubview(makePlainRow(item.detail, trait: trait))
             }
@@ -675,50 +724,93 @@ final class WorkCell: UITableViewCell {
 
     @objc private func tapHeader() { onToggleWork?() }
 
-    private func makeThinkingRow(_ item: WorkItem, trait: UITraitCollection) -> UIView {
+    /// 折叠行（网页版同款）：标题 + 小箭头，点开看详情。
+    private func makeFoldRow(
+        symbol: String,
+        title: String,
+        detail: String?,
+        monoDetail: Bool,
+        expanded: Bool,
+        itemId: String,
+        trait: UITraitCollection
+    ) -> UIView {
         let wrap = UIView()
         wrap.translatesAutoresizingMaskIntoConstraints = false
 
-        let head = UIView()
+        let head = UIButton(type: .system)
         head.translatesAutoresizingMaskIntoConstraints = false
-        let icon = UIImageView(image: UIImage(systemName: "brain.head.profile"))
+        head.contentHorizontalAlignment = .left
+        head.setTitle("  " + title, for: .normal)
+        head.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
+        head.titleLabel?.font = .systemFont(ofSize: 12.5)
+        head.addTarget(self, action: #selector(tapItem(_:)), for: .touchUpInside)
+
+        let icon = UIImageView(image: UIImage(systemName: symbol))
         icon.tintColor = ZUIColor.inkSoft(trait)
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.contentMode = .scaleAspectFit
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "思考 · 持续了几秒"
-        label.textColor = ZUIColor.inkSoft(trait)
-        label.font = .systemFont(ofSize: 12.5)
 
-        let body = UILabel()
-        body.translatesAutoresizingMaskIntoConstraints = false
-        body.font = .systemFont(ofSize: 13)
-        body.textColor = ZUIColor.inkSoft(trait)
-        body.numberOfLines = 0
-        body.text = item.detail
+        let arrow = UIImageView(
+            image: UIImage(
+                systemName: expanded ? "chevron.up" : "chevron.down",
+                withConfiguration: UIImage.SymbolConfiguration(weight: .semibold)
+            )
+        )
+        arrow.tintColor = ZUIColor.inkFaint(trait)
+        arrow.translatesAutoresizingMaskIntoConstraints = false
+        arrow.contentMode = .scaleAspectFit
 
+        wrap.addSubview(icon)
         wrap.addSubview(head)
-        head.addSubview(icon)
-        head.addSubview(label)
-        wrap.addSubview(body)
+        wrap.addSubview(arrow)
         NSLayoutConstraint.activate([
-            head.topAnchor.constraint(equalTo: wrap.topAnchor),
-            head.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
-            head.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor),
-            head.heightAnchor.constraint(equalToConstant: 20),
-            icon.leadingAnchor.constraint(equalTo: head.leadingAnchor),
+            icon.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
             icon.centerYAnchor.constraint(equalTo: head.centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 14),
             icon.heightAnchor.constraint(equalToConstant: 14),
-            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-            label.centerYAnchor.constraint(equalTo: head.centerYAnchor),
-            body.topAnchor.constraint(equalTo: head.bottomAnchor, constant: 4),
-            body.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 20),
-            body.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
-            body.bottomAnchor.constraint(equalTo: wrap.bottomAnchor)
+            head.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 2),
+            head.topAnchor.constraint(equalTo: wrap.topAnchor),
+            head.heightAnchor.constraint(equalToConstant: 20),
+            head.trailingAnchor.constraint(equalTo: arrow.leadingAnchor, constant: -4),
+            arrow.centerYAnchor.constraint(equalTo: head.centerYAnchor),
+            arrow.widthAnchor.constraint(equalToConstant: 11),
+            arrow.heightAnchor.constraint(equalToConstant: 11),
+            arrow.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor)
         ])
+
+        if let detail, !detail.isEmpty {
+            let body = UILabel()
+            body.translatesAutoresizingMaskIntoConstraints = false
+            body.font = monoDetail
+                ? .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+                : .systemFont(ofSize: 13)
+            body.textColor = ZUIColor.inkSoft(trait)
+            body.numberOfLines = expanded ? 24 : 1
+            body.text = detail
+            if expanded {
+                body.backgroundColor = ZUIColor.surface(trait)
+                body.layer.cornerRadius = 8
+                body.isLayoutMarginsRelativeArrangement = true
+                body.layoutMargins = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+            }
+            wrap.addSubview(body)
+            NSLayoutConstraint.activate([
+                body.topAnchor.constraint(equalTo: head.bottomAnchor, constant: 4),
+                body.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 20),
+                body.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
+                body.bottomAnchor.constraint(equalTo: wrap.bottomAnchor)
+            ])
+        } else {
+            head.bottomAnchor.constraint(equalTo: wrap.bottomAnchor).isActive = true
+        }
+        itemHandlers[head] = itemId
         return wrap
+    }
+
+    @objc private func tapItem(_ sender: UIButton) {
+        if let id = itemHandlers[sender] {
+            onToggleItem?(id)
+        }
     }
 
     private func makeIconRow(symbol: String, parts: [(String, UIColor, Bool)], trait: UITraitCollection) -> UIView {
@@ -744,27 +836,6 @@ final class WorkCell: UITableViewCell {
             row.addArrangedSubview(label)
         }
         return row
-    }
-
-    private func makeTerminalRow(_ command: String, trait: UITraitCollection) -> UIView {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
-        label.textColor = ZUIColor.inkSoft(trait)
-        label.text = command
-        label.numberOfLines = 1
-        let box = UIView()
-        box.translatesAutoresizingMaskIntoConstraints = false
-        box.backgroundColor = ZUIColor.surface(trait)
-        box.layer.cornerRadius = 8
-        box.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: box.topAnchor, constant: 7),
-            label.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -7),
-            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 9),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: box.trailingAnchor, constant: -9)
-        ])
-        return box
     }
 
     private func makePlainRow(_ text: String, trait: UITraitCollection) -> UIView {

@@ -92,12 +92,14 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     private(set) var activeTaskId: String?
     private(set) var deviceName: String?
     private(set) var providers: [ModelProviderInfo] = []
+    private(set) var fileChangesContext: (revision: Int, logEpoch: Int, rowId: Int, entityId: String)?
 
     var onStateChange: ((State) -> Void)?
     var onSnapshot: (() -> Void)?
     var onMessages: ((String, [ChatMessage]) -> Void)?
     var onSendResult: ((Bool, String?) -> Void)?
     var onProviders: (() -> Void)?
+    var onFileChanges: (([FileChangeInfo]) -> Void)?
 
     private var session: URLSession!
     private var socket: URLSessionWebSocketTask?
@@ -528,11 +530,81 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             args["limit"] = 120
             let result = try await channels.call(channel: "zcode-agent", method: "conversationRowsRangeV4", args: [args])
             let messages = Self.parseMessages(result.jsonObject)
+            captureFileChangesContext(result.jsonObject)
             writeDebug("rowsRange", ["taskId": taskId, "raw": result.jsonObject ?? NSNull()])
             DispatchQueue.main.async { self.onMessages?(taskId, messages) }
         } catch {
             writeDebug("rowsRange-error", ["taskId": taskId, "error": error.localizedDescription])
             // 未订阅时桌面端会拒；配对、任务列表、发送不受影响。
+        }
+    }
+
+    /// 审查面板：从 rowsRange 结果里记下 revision/logEpoch 和最后一条用户行，
+    /// 之后用它们去问 fileChanges。
+    private func captureFileChangesContext(_ raw: Any?) {
+        guard let dict = raw as? [String: Any] else { return }
+        let revision = RpcFrame.intValue(dict["revision"] ?? dict["atRevision"])
+        let logEpoch = RpcFrame.intValue(dict["logEpoch"] ?? dict["atLogEpoch"])
+        let rows = (dict["rows"] as? [[String: Any]])
+            ?? ((dict["rows"] as? [String: Any])?["window"] as? [[String: Any]])
+            ?? []
+        for row in rows.reversed() {
+            if (row["kind"] as? String)?.lowercased().hasPrefix("user") == true {
+                fileChangesContext = (
+                    revision,
+                    logEpoch,
+                    RpcFrame.intValue(row["rowId"]),
+                    (row["entityId"] as? String) ?? ""
+                )
+                return
+            }
+        }
+    }
+
+    /// 拉当前会话的文件改动（审查面板数据）。
+    func fetchFileChanges(for taskId: String) {
+        guard let ctx = fileChangesContext, ctx.revision > 0 else { return }
+        Task {
+            do {
+                var args = workspaceArgs()
+                args["sessionId"] = taskId
+                args["target"] = ["rowId": ctx.rowId, "entityId": ctx.entityId]
+                args["baseRevision"] = ctx.revision
+                args["baseLogEpoch"] = ctx.logEpoch
+                let result = try await channels.call(channel: "zcode-agent", method: "conversationFileChangesV4", args: [args])
+                writeDebug("fileChanges", ["raw": result.jsonObject ?? NSNull()])
+                let files = Self.parseFileChanges(result.jsonObject)
+                DispatchQueue.main.async { self.onFileChanges?(files) }
+            } catch {
+                writeDebug("fileChanges-error", ["error": error.localizedDescription])
+            }
+        }
+    }
+
+    static func parseFileChanges(_ raw: Any?) -> [FileChangeInfo] {
+        // 响应结构未知，做多位置防御解析；原始返回已落调试文件。
+        var candidates: [Any] = []
+        if let dict = raw as? [String: Any] {
+            for key in ["files", "changes", "fileChanges", "items"] {
+                if let arr = dict[key] as? [[String: Any]] { candidates = arr; break }
+            }
+            if candidates.isEmpty, let result = dict["result"] as? [String: Any] {
+                for key in ["files", "changes", "fileChanges", "items"] {
+                    if let arr = result[key] as? [[String: Any]] { candidates = arr; break }
+                }
+            }
+        } else if let arr = raw as? [[String: Any]] {
+            candidates = arr
+        }
+        return candidates.compactMap { item in
+            guard let path = (item["path"] as? String) ?? (item["file_path"] as? String) else { return nil }
+            let additions = RpcFrame.intValue(item["additions"] ?? item["added"])
+            let deletions = RpcFrame.intValue(item["deletions"] ?? item["removed"])
+            let status = (item["status"] as? String)
+                ?? (item["change"] as? String)
+                ?? (item["type"] as? String)
+                ?? "M"
+            return FileChangeInfo(path: path, status: status, additions: additions, deletions: deletions)
         }
     }
 
@@ -813,14 +885,28 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                 ))
             } else if kind == "toolCall" {
                 guard !trimmed.isEmpty else { continue }
+                let toolName = (row["toolName"] as? String) ?? (row["name"] as? String) ?? ""
+                var filePath: String?
+                var content: String?
+                if let data = trimmed.data(using: .utf8),
+                   let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                    filePath = obj["file_path"] as? String
+                    if let c = obj["content"] as? String { content = c }
+                    if let c = obj["new_string"] as? String { content = (content ?? "") + c }
+                }
+                var detail = content ?? trimmed
+                if detail.count > 6000 {
+                    detail = String(detail.prefix(6000)) + "\n…"
+                }
                 messages.append(ChatMessage(
                     id: id, role: "assistant", kind: kind, createdAt: createdAt,
                     blocks: [ChatBlock(
                         id: "\(id)-tool",
                         kind: "tool",
-                        text: trimmed,
-                        tool: row["toolName"] as? String ?? row["name"] as? String,
-                        status: row["status"] as? String
+                        text: detail,
+                        tool: toolName,
+                        status: row["status"] as? String,
+                        path: filePath
                     )]
                 ))
             }
