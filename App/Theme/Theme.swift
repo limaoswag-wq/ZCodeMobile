@@ -64,6 +64,11 @@ enum ZUIColor {
             ? UIColor(red: 0.165, green: 0.169, blue: 0.188, alpha: 1)   // #2A2B30
             : UIColor(red: 0.925, green: 0.925, blue: 0.933, alpha: 1)
     }
+    static func canvas(_ t: UITraitCollection) -> UIColor {
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)   // #111214
+            : .white
+    }
     static let ok = UIColor(red: 0.133, green: 0.627, blue: 0.42, alpha: 1)
     static let danger = UIColor(red: 0.898, green: 0.282, blue: 0.302, alpha: 1)
 }

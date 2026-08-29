@@ -446,7 +446,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             activeTaskId = taskId
         }
         onSnapshot?()
-        Task { await prepareConversation() }
+        Task { [weak self] in
+            _ = try? await self?.prepareConversation()
+        }
     }
 
     private func requestBootstrap() {

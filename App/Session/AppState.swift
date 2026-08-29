@@ -91,9 +91,8 @@ final class AppState: ObservableObject {
     }
 
     func connectSavedLinkIfNeeded() {
-        guard relay.state == .idle, let raw = settings.officialURL,
-              let link = OfficialLinkParser.parse(raw)
-        else { return }
+        guard relay.state == .idle else { return }
+        guard let link = OfficialLinkParser.parse(settings.officialURL) else { return }
         relay.connect(link)
     }
 

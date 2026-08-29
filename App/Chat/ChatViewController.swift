@@ -554,7 +554,8 @@ final class WorkCell: UITableViewCell {
     private var onToggleWork: (() -> Void)?
     private var onToggleThinking: ((String) -> Void)?
     private var workId = ""
-    private var itemIdByRow: [Int: String] = [:]
+    private var thinkingHandlers: [Int: String] = [:]
+    private var nextThinkingTag = 0
     private var startMs = 0
     private var endMs = 0
     private var running = false
@@ -575,9 +576,8 @@ final class WorkCell: UITableViewCell {
         headerButton.addTarget(self, action: #selector(tapHeader), for: .touchUpInside)
 
         chevron.translatesAutoresizingMaskIntoConstraints = false
-        chevron.image = UIImage(systemName: "chevron.down")
+        chevron.image = UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(weight: .semibold))
         chevron.tintColor = ZUIColor.inkFaint(UITraitCollection.current)
-        chevron.font = .systemFont(ofSize: 11, weight: .semibold)
         chevron.contentMode = .scaleAspectFit
 
         leftBar.translatesAutoresizingMaskIntoConstraints = false
@@ -641,6 +641,8 @@ final class WorkCell: UITableViewCell {
         self.expanded = expanded
         self.onToggleWork = onToggleWork
         self.onToggleThinking = onToggleThinking
+        thinkingHandlers.removeAll()
+        nextThinkingTag = 0
 
         headerButton.setTitle("已工作 \(durationText())", for: .normal)
         headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
@@ -740,12 +742,17 @@ final class WorkCell: UITableViewCell {
             body.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
             body.bottomAnchor.constraint(equalTo: wrap.bottomAnchor)
         ])
-        let tap = UITapGestureRecognizer()
-        tap.addAction(UIAction { [weak self] _ in
-            self?.onToggleThinking?(item.id)
-        })
-        head.addGestureRecognizer(tap)
+        nextThinkingTag += 1
+        head.tag = nextThinkingTag
+        thinkingHandlers[nextThinkingTag] = item.id
+        head.addTarget(self, action: #selector(tapThinking(_:)), for: .touchUpInside)
         return wrap
+    }
+
+    @objc private func tapThinking(_ sender: UIButton) {
+        if let id = thinkingHandlers[sender.tag] {
+            onToggleThinking?(id)
+        }
     }
 
     private func makeIconRow(symbol: String, parts: [(String, UIColor, Bool)], trait: UITraitCollection) -> UIView {

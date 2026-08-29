@@ -216,7 +216,7 @@ struct SidebarDrawer: View {
             drawer
                 .frame(width: 300)
                 .background(ZTheme.canvas)
-                .clipShape(UnevenRoundedRectangle(topRightRadius: 26, bottomRightRadius: 26))
+                .clipShape(UnevenRoundedRectangle(topLeading: 0, topTrailing: 26, bottomLeading: 0, bottomTrailing: 26))
                 .shadow(color: .black.opacity(0.18), radius: 24, x: 6, y: 0)
             Spacer(minWidth: 0)
         }
@@ -482,7 +482,13 @@ struct AttachSheet: View {
 
 struct SettingsSheet: View {
     @ObservedObject var app: AppState
+    @ObservedObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
+
+    init(app: AppState) {
+        self.app = app
+        self.settings = app.settings
+    }
 
     var body: some View {
         NavigationStack {
@@ -501,9 +507,9 @@ struct SettingsSheet: View {
                 }
 
                 Section {
-                    Toggle("Bark 推送", isOn: $app.settings.barkEnabled)
-                    if app.settings.barkEnabled {
-                        TextField("https://api.day.app/你的Key", text: $app.settings.barkURL)
+                    Toggle("Bark 推送", isOn: $settings.barkEnabled)
+                    if settings.barkEnabled {
+                        TextField("https://api.day.app/你的Key", text: $settings.barkURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -515,7 +521,7 @@ struct SettingsSheet: View {
                 }
 
                 Section {
-                    Toggle("后台保活（静音播放）", isOn: $app.settings.keepAlive)
+                    Toggle("后台保活（静音播放）", isOn: $settings.keepAlive)
                 } header: {
                     Text("后台")
                 } footer: {
