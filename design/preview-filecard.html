@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>交互演示 · 文件更改卡片（审查/打开）</title>
+<style>
+  *{box-sizing:border-box;margin:0}
+  body{background:#0e0f12;color:#e8e9ec;font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;padding:24px 20px 60px}
+  h1{font-size:19px}.sub{color:#9aa0aa;font-size:13px;margin:6px 0 18px;line-height:1.6}
+  .wrap{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:375px;height:812px;background:#fff;border:10px solid #1b1c20;border-radius:54px;overflow:hidden;position:relative;color:#171719;box-shadow:0 18px 55px rgba(0,0,0,.5);display:flex;flex-direction:column}
+  .statusbar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600}
+  .top{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #f0f0f2}
+  .top .back{font-size:20px;width:30px}
+  .top .title{font-size:15.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top .pill{font-size:12.5px;font-weight:600;background:#f2f3f5;border-radius:16px;padding:7px 12px;color:#171719}
+  .scroll{flex:1;overflow-y:auto;padding:10px 16px 16px}
+  .homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:#171719;opacity:.85}
+  .composer{flex:none;margin:0 12px 22px;background:#fff;border:1px solid #ececee;border-radius:26px;padding:13px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 26px rgba(0,0,0,.06)}
+  .composer .plus{width:32px;height:32px;border-radius:50%;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .composer .ph{flex:1;color:#b3b8c2;font-size:15px}
+  .composer .send{width:32px;height:32px;border-radius:50%;background:#2f6bff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+  /* 用户气泡 */
+  .urow{display:flex;justify-content:flex-end;margin:8px 0 2px}
+  .ubub{background:#f2f3f5;border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14.5px;max-width:78%;line-height:1.5}
+  .meta{display:flex;gap:12px;justify-content:flex-end;color:#b3b8c2;font-size:11.5px;margin:4px 2px 10px}
+  /* 已工作 */
+  .work-h{display:flex;align-items:center;gap:6px;color:#8a8f98;font-size:13px;padding:8px 0;cursor:pointer;user-select:none}
+  .work-h .ch{font-size:10px;transition:transform .18s}
+  .work-h.open .ch{transform:rotate(180deg)}
+  .tl{border-left:2px solid #ececee;margin:2px 0 10px 6px;padding-left:14px;display:flex;flex-direction:column;gap:9px}
+  .ti{font-size:12.5px;color:#8a8f98}
+  .ti .h{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+  .ti .h .ic{width:14px;text-align:center}
+  .ti .h .ch{font-size:9px;color:#b3b8c2;transition:transform .18s}
+  .ti.open .h .ch{transform:rotate(180deg)}
+  .ti .bd{display:none;margin:6px 0 0 20px;font-size:12.5px;color:#8a8f98;line-height:1.6}
+  .ti.open .bd{display:block}
+  .ti .bd.mono{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:#f7f7f8;border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-all}
+  /* 正文 */
+  .body{font-size:14.5px;line-height:1.65;color:#171719}
+  .body h3{font-size:16px;font-weight:700;margin:12px 0 6px}
+  .body p{margin:0 0 9px}
+  .body ol{margin:0 0 10px;padding-left:18px}
+  .body ol li{margin:0 0 7px}
+  .body code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#f2f3f5;border-radius:6px;padding:2px 6px}
+  /* 文件更改卡片 */
+  .fcard{border:1px solid #ececee;border-radius:14px;margin:6px 0 8px;overflow:hidden}
+  .fcard-h{display:flex;align-items:center;gap:8px;padding:11px 12px;font-size:13px;color:#171719;cursor:pointer;user-select:none}
+  .fcard-h .ch{font-size:10px;color:#8a8f98;transition:transform .18s}
+  .fcard.open .fcard-h .ch{transform:rotate(180deg)}
+  .fcard-h b{font-weight:600}
+  .fcard-h .add{color:#22a06b;font-weight:600}.fcard-h .del{color:#e5484d;font-weight:600}
+  .fcard-h .undo{margin-left:auto;color:#8a8f98;display:flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer}
+  .files{display:none}
+  .fcard.open .files{display:block}
+  .frow{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #f4f4f6;font-size:12.5px}
+  .frow .ic{width:16px;text-align:center;color:#8a8f98}
+  .frow .fname{font-weight:600;color:#171719;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px}
+  .frow .fdir{color:#b3b8c2;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px}
+  .frow .st{color:#22a06b;font-weight:600;font-size:11.5px}
+  .btn{border:1px solid #e3e5e9;background:#fff;border-radius:9px;padding:4px 11px;font-size:12px;font-weight:600;color:#171719;cursor:pointer;user-select:none}
+  .btn:active{background:#f2f3f5}
+  /* 内联 diff */
+  .diff{display:none;border-top:1px solid #f0f0f2;max-height:260px;overflow:auto;background:#fff}
+  .diff.show{display:block}
+  .dl{display:flex;font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.9}
+  .dl .n{flex:0 0 30px;text-align:right;padding-right:8px;color:#c3c7ce;user-select:none}
+  .dl .c{flex:1;padding-right:10px;white-space:pre}
+  .dl.add{background:#e9f8ef}.dl.add .c{color:#157347}
+  .dl.del{background:#fdeef0}.dl.del .c{color:#b3252e}
+  /* 打开：全屏查看器 */
+  .viewer{position:absolute;inset:0;background:#fff;z-index:20;display:none;flex-direction:column}
+  .viewer.show{display:flex}
+  .v-top{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid #ececee}
+  .v-top .close{font-size:18px;width:30px;cursor:pointer}
+  .v-top .crumb{font-size:13px;color:#8a8f98}
+  .v-top .crumb b{color:#171719;font-weight:600}
+  .v-code{flex:1;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:2;padding:8px 0}
+  .v-code .dl .n{flex-basis:36px}
+  .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);background:rgba(23,23,25,.82);color:#fff;font-size:12.5px;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
+  .toast.show{opacity:1}
+  .tips{max-width:430px}
+  .tips li{margin:0 0 8px;font-size:13px;line-height:1.7;color:#c6cad2}
+  .tips b{color:#fff}
+</style>
+</head>
+<body>
+<h1>交互演示 · 文件更改卡片（审查 / 打开）</h1>
+<div class="sub">直接在下面手机里点：⌄ 展开已工作、思考/写入行、文件卡片；点「审查」看内联 diff；点「打开」进全屏查看器；「撤销」有 toast 反馈。确认交互后我按这个实现（连同正文拼行修复 + 思考等级 variants 一起出包）。</div>
+<div class="wrap">
+  <div class="phone">
+    <div class="statusbar"><span>06:11</span><span>▮▮▮ ⌁ 55</span></div>
+    <div class="top"><div class="back">‹</div><div class="title">zcode网页版手机控制</div><div class="pill">grok-4.6 · 高 ⌄</div><div style="font-size:16px">🖊</div></div>
+    <div class="scroll" id="scroll">
+      <div class="urow"><div class="ubub">把工作区域改成图2图3的样式，审查和打开都要，先做交互稿</div></div>
+      <div class="meta"><span>复制</span><span>06:08</span></div>
+
+      <div class="work-h open" onclick="this.classList.toggle('open');document.getElementById('tl').style.display=this.classList.contains('open')?'flex':'none'">
+        已工作 14 分 8 秒 <span class="ch">⌄</span>
+      </div>
+      <div class="tl" id="tl">
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">🧠</span>思考 · 持续了几秒 <span class="ch">⌄</span></div>
+          <div class="bd">用户要文件更改卡片：聊天里每轮结束显示「N 个文件已更改 +A -B」，文件行带审查/打开。审查=内联 diff，打开=全屏查看器。做一个可交互的 HTML 演示。</div>
+        </div>
+        <div class="ti open" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">✏️</span>写入 preview-round2.html <span style="color:#22a06b;font-weight:600">+146</span> <span class="ch">⌄</span></div>
+          <div class="bd mono">&lt;!doctype html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</div>
+        </div>
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">⌨️</span>cd C:/Users/58499/ZCodeProject/ZCo… <span class="ch">⌄</span></div>
+          <div class="bd mono">cd "C:/Users/58499/ZCodeProject/ZCodeMobile" && git add design/preview-round2.html && git commit -q && git push -q origin main</div>
+        </div>
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">🔍</span>读取 ChatViewController.swift <span class="ch">⌄</span></div>
+          <div class="bd mono">func updateUIViewController(_ controller: ChatViewController, context: Context) { … }</div>
+        </div>
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">🧠</span>思考 · 持续了几秒 <span class="ch">⌄</span></div>
+          <div class="bd">预览页已经在右边浏览器里打开了，没动任何 App 代码。</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <p>预览页已经在右边浏览器里打开了，没动任何 App 代码。三个问题的核实结果：</p>
+        <h3>① 正文压成一坨 —— 根因找到了</h3>
+        <p>聊天页把正文所有段落用空格拼成一整行再送渲染器，换行全没了。下轮只改这一处。</p>
+      </div>
+
+      <div class="fcard open" id="fcard">
+        <div class="fcard-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="ch">⌄</span><b>1 个文件已更改</b>
+          <span class="add">+146</span><span class="del">-0</span>
+          <span class="undo" onclick="event.stopPropagation();undo()">⟲ 撤销</span>
+        </div>
+        <div class="files">
+          <div class="frow">
+            <span class="ic">📝</span>
+            <span class="fname">preview-round2.html</span>
+            <span class="fdir">ZCodeMobile/design</span>
+            <span class="st">+146</span>
+            <button class="btn" onclick="toggleDiff()">审查</button>
+            <button class="btn" onclick="openViewer()">打开</button>
+          </div>
+          <div class="diff" id="diff">
+            <div class="dl add"><span class="n">1</span><span class="c">&lt;!doctype html&gt;</span></div>
+            <div class="dl add"><span class="n">2</span><span class="c">&lt;html lang="zh-CN"&gt;</span></div>
+            <div class="dl add"><span class="n">3</span><span class="c">&lt;head&gt;</span></div>
+            <div class="dl add"><span class="n">4</span><span class="c">&lt;meta charset="utf-8"&gt;</span></div>
+            <div class="dl del"><span class="n">5</span><span class="c">&lt;title&gt;旧版预览&lt;/title&gt;</span></div>
+            <div class="dl add"><span class="n">5</span><span class="c">&lt;title&gt;核实预览 · 正文排版 + 模型菜单 v2&lt;/title&gt;</span></div>
+            <div class="dl add"><span class="n">6</span><span class="c">&lt;style&gt;</span></div>
+            <div class="dl add"><span class="n">7</span><span class="c">*{box-sizing:border-box;margin:0}</span></div>
+            <div class="dl add"><span class="n">8</span><span class="c">body{background:#0e0f12;color:#e8e9ec}</span></div>
+            <div class="dl add"><span class="n">9</span><span class="c">.phone{width:340px;background:#fff}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta"><span>复制</span><span>06:11</span></div>
+    </div>
+    <div class="composer"><div class="plus">＋</div><div class="ph">提出后续修改要求…</div><div class="send">↑</div></div>
+    <div class="homebar"></div>
+    <div class="viewer" id="viewer">
+      <div class="v-top">
+        <span class="close" onclick="closeViewer()">✕</span>
+        <span class="crumb">design › <b>preview-round2.html</b></span>
+        <span style="margin-left:auto;color:#22a06b;font-size:12px;font-weight:600">+146</span>
+      </div>
+      <div class="v-code" id="vcode"></div>
+    </div>
+    <div class="toast" id="toast">已请求桌面端撤销本次更改</div>
+  </div>
+
+  <ul class="tips">
+    <li><b>文件卡片位置</b>：每轮回复的正文之后（和网页版一致），可整卡折叠；「⟲ 撤销」点击后向桌面端发撤销命令。</li>
+    <li><b>审查</b>：在该文件行下方内联展开 diff（行号 + 绿增红删，最多显示 200 行），再点一次收起。</li>
+    <li><b>打开</b>：全屏代码查看器，面包屑显示目录路径，右上角增删统计，✕ 返回会话。（桌面端的「打开」是进编辑器，手机上等价为只读查看器；要编辑就回电脑。）</li>
+    <li><b>已工作里的写入行</b>：✏️ 文件名 +N，点开预览写入内容——和卡片数据同源。</li>
+    <li><b>下轮出包一起带上</b>：正文拼行修复（排版恢复）、思考等级 variants 原值（修那个中文 thought 的隐藏 bug）、模型菜单只显示启用供应商。</li>
+    <li><b>数据来源</b>：审查卡片复用已接好的 conversationFileChangesV4；diff 内容用文件的 attachmentRead/fileChanges 增量，拿不到 full diff 时先显示前 200 行文件内容。</li>
+  </ul>
+</div>
+<script>
+  function toggleDiff(){
+    const d = document.getElementById('diff');
+    d.classList.toggle('show');
+    if(d.classList.contains('show')) d.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function openViewer(){
+    const diff = document.getElementById('diff').innerHTML;
+    document.getElementById('vcode').innerHTML = diff;
+    document.getElementById('viewer').classList.add('show');
+  }
+  function closeViewer(){ document.getElementById('viewer').classList.remove('show'); }
+  let toastTimer;
+  function undo(){
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+</script>
+</body>
+</html>
