@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>交互演示 v3 · 侧边栏页签（照官方实现）</title>
+<style>
+  *{box-sizing:border-box;margin:0}
+  body{background:#0e0f12;color:#e8e9ec;font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;padding:24px 20px 60px}
+  h1{font-size:19px}.sub{color:#9aa0aa;font-size:13px;margin:6px 0 18px;line-height:1.6}
+  .phone{width:375px;height:812px;background:#fff;border:10px solid #1b1c20;border-radius:54px;overflow:hidden;position:relative;color:#171719;box-shadow:0 18px 55px rgba(0,0,0,.5);display:flex;flex-direction:column}
+  .statusbar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600}
+  .top{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #f0f0f2}
+  .top .back{font-size:20px;width:30px}
+  .top .title{font-size:15.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top .pill{font-size:12.5px;font-weight:600;background:#f2f3f5;border-radius:16px;padding:7px 12px}
+  .scroll{flex:1;overflow-y:auto;padding:10px 16px 16px}
+  .homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:#171719;opacity:.85;z-index:60}
+  .composer{flex:none;margin:0 12px 22px;background:#fff;border:1px solid #ececee;border-radius:26px;padding:13px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 26px rgba(0,0,0,.06);position:relative;z-index:5}
+  .composer .plus{width:32px;height:32px;border-radius:50%;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .composer .ph{flex:1;color:#b3b8c2;font-size:15px}
+  .composer .send{width:32px;height:32px;border-radius:50%;background:#2f6bff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .urow{display:flex;justify-content:flex-end;margin:8px 0 2px}
+  .ubub{background:#f2f3f5;border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14.5px;max-width:78%;line-height:1.5}
+  .meta{display:flex;gap:12px;justify-content:flex-end;color:#b3b8c2;font-size:11.5px;margin:4px 2px 10px}
+  .work-h{display:flex;align-items:center;gap:6px;color:#8a8f98;font-size:13px;padding:8px 0;cursor:pointer;user-select:none}
+  .work-h .ch{font-size:10px;transition:transform .18s}
+  .work-h.open .ch{transform:rotate(180deg)}
+  .tl{border-left:2px solid #ececee;margin:2px 0 10px 6px;padding-left:14px;display:flex;flex-direction:column;gap:9px}
+  .ti{font-size:12.5px;color:#8a8f98}
+  .ti .h{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+  .ti .h .ic{width:14px;text-align:center}
+  .ti .h .add{color:#22a06b;font-weight:600;font-size:11.5px}
+  .ti .h .ch{font-size:9px;color:#b3b8c2;transition:transform .18s}
+  .ti.open .h .ch{transform:rotate(180deg)}
+  /* 写入行展开：白底 + 语法高亮 + 行号（官方样式） */
+  .codebox{display:none;margin:7px 0 0 20px;background:#fff;border:1px solid #ececee;border-radius:10px;overflow:hidden}
+  .ti.open .codebox{display:block}
+  .cl{display:flex;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;line-height:2.1}
+  .cl .n{flex:0 0 26px;text-align:right;padding-right:8px;color:#c3c7ce;user-select:none}
+  .cl .c{flex:1;padding-right:8px;white-space:pre;overflow:hidden}
+  .tg{color:#d05c65}.at{color:#a669d9}.st{color:#4f9e58}.pn{color:#98a0ab}.kw{color:#a669d9}.ty{color:#3d8fd1}.cm{color:#9aa5b1;font-style:italic}
+  .body{font-size:14.5px;line-height:1.65;color:#171719}
+  .body p{margin:0 0 9px}
+  .fcard{border:1px solid #ececee;border-radius:14px;margin:6px 0 8px;overflow:hidden}
+  .fcard-h{display:flex;align-items:center;gap:8px;padding:11px 12px;font-size:13px;cursor:pointer;user-select:none}
+  .fcard-h .ch{font-size:10px;color:#8a8f98;transition:transform .18s}
+  .fcard.open .fcard-h .ch{transform:rotate(180deg)}
+  .fcard-h b{font-weight:600}
+  .fcard-h .add{color:#22a06b;font-weight:600}.fcard-h .del{color:#e5484d;font-weight:600}
+  .fcard-h .undo{margin-left:auto;color:#8a8f98;display:flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer}
+  .files{display:none}
+  .fcard.open .files{display:block}
+  .frow{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #f4f4f6;font-size:12.5px}
+  .frow .ic{color:#8a8f98}
+  .frow .fname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
+  .frow .fdir{color:#b3b8c2;font-size:11px;max-width:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .frow .st{color:#22a06b;font-weight:600;font-size:11.5px}
+  .btn{border:1px solid #e3e5e9;background:#fff;border-radius:9px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer}
+  .btn:active{background:#f2f3f5}
+  /* ===== 侧边栏（官方结构）===== */
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:18;opacity:0;pointer-events:none;transition:opacity .2s}
+  .dim.show{opacity:1;pointer-events:auto}
+  .panel{position:absolute;top:0;bottom:0;right:0;width:88%;background:#fff;z-index:20;transform:translateX(105%);transition:transform .24s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;border-radius:22px 0 0 26px;box-shadow:-14px 0 40px rgba(0,0,0,.16)}
+  .panel.show{transform:translateX(0)}
+  .p-top{flex:none;display:flex;align-items:center;gap:8px;padding:12px 12px 8px}
+  .p-top .col{font-size:13px;cursor:pointer;color:#6b7280;display:flex;align-items:center;gap:4px}
+  .p-tabs{flex:none;display:flex;align-items:center;gap:6px;padding:0 12px 10px;overflow-x:auto}
+  .p-tabs::-webkit-scrollbar{display:none}
+  .ptab{flex:0 0 auto;display:flex;align-items:center;gap:6px;max-width:150px;padding:7px 9px;border-radius:10px;background:#f2f3f5;font-size:11px;cursor:pointer;color:#171719}
+  .ptab.on{background:#eaf0ff;color:#2f6bff;outline:1px solid #c7d8ff}
+  .ptab .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:88px;font-weight:600}
+  .ptab .mode{font-size:9px;background:rgba(47,107,255,.14);color:#2f6bff;border-radius:4px;padding:1px 4px;font-weight:700}
+  .ptab .x{font-size:10px;color:#8a8f98;padding:0 2px}
+  .p-add{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#8a8f98;cursor:pointer}
+  .p-crumb{flex:none;display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:4px 14px 8px;font-size:11px;color:#8a8f98}
+  .p-crumb b{color:#171719;font-weight:600}
+  .p-actions{flex:none;display:flex;gap:8px;padding:0 14px 8px}
+  .p-actions .ab{border:1px solid #e3e5e9;border-radius:9px;background:#fff;padding:5px 10px;font-size:11.5px;font-weight:600;color:#171719}
+  .p-actions .ab.dis{color:#c3c7ce}
+  .p-code{flex:1;overflow:auto;border-top:1px solid #f0f0f2;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;line-height:2;padding:6px 0}
+  .dl{display:flex}
+  .dl .n{flex:0 0 24px;text-align:right;padding-right:6px;color:#c3c7ce;user-select:none}
+  .dl .n2{flex:0 0 24px;text-align:right;padding-right:8px;color:#c3c7ce;user-select:none;border-right:1px solid #f0f0f2;margin-right:8px}
+  .dl .c{flex:1;padding-right:10px;white-space:pre}
+  .dl.add{background:#e9f8ef}.dl.add .c{color:#157347}
+  .dl.del{background:#fdeef0}.dl.del .c{color:#b3252e}
+  .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);background:rgba(23,23,25,.82);color:#fff;font-size:12.5px;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
+  .tips{max-width:460px}
+  .tips li{margin:0 0 9px;font-size:13px;line-height:1.75;color:#c6cad2}
+  .tips b{color:#fff}
+  code{color:#9ecbff}
+</style>
+</head>
+<body>
+<h1>交互演示 v3 · 侧边栏页签（照官方核实结果实现）</h1>
+<div class="sub">官方结构（刚从网页版 DOM 核实）：页签栏 = 「搜索标签页」+ 任意多个页签（完整路径 + Diff/文件 类型 + 独立关闭）+「新增标签➕」；内容区 = 面包屑 + 查看源码/更多/在编辑器中打开 + <b>双行号槽 diff</b> + 语法高亮。点文件行的「审查」「打开」各开各的页签，可同时开多个。聊天里 ✏️ 写入行展开也换成白底高亮代码卡。</div>
+<div class="wrap">
+  <div class="phone">
+    <div class="statusbar"><span>06:40</span><span>▮▮▮ ⌁ 55</span></div>
+    <div class="top"><div class="back">‹</div><div class="title">zcode网页版手机控制</div><div class="pill">grok-4.6 · 高 ⌄</div><div style="font-size:16px">🖊</div></div>
+    <div class="scroll">
+      <div class="urow"><div class="ubub">侧边栏照官方页签结构来，可以同时开多个文件和审查，写入行也要高亮</div></div>
+      <div class="meta"><span>复制</span><span>06:38</span></div>
+
+      <div class="work-h open" onclick="this.classList.toggle('open');document.getElementById('tl').style.display=this.classList.contains('open')?'flex':'none'">
+        已工作 6 分 12 秒 <span class="ch">⌄</span>
+      </div>
+      <div class="tl" id="tl">
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">🧠</span>思考 · 持续了几秒 <span class="ch">⌄</span></div>
+          <div class="bd" style="font-family:inherit;background:none;padding:0">页签结构照官方 DOM 核实结果实现：路径 + 类型 + 独立关闭，双行号槽。</div>
+        </div>
+        <div class="ti open" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">✏️</span>写入 preview-round2.html <span class="add">+146</span> <span class="ch">⌄</span></div>
+          <div class="codebox">
+            <div class="cl"><span class="n">1</span><span class="c"><span class="pn">&lt;</span><span class="tg">!doctype</span> <span class="tg">html</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">2</span><span class="c"><span class="pn">&lt;</span><span class="tg">html</span> <span class="at">lang</span><span class="pn">=</span><span class="st">"zh-CN"</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">3</span><span class="c"><span class="pn">&lt;</span><span class="tg">head</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">4</span><span class="c">  <span class="pn">&lt;</span><span class="tg">meta</span> <span class="at">charset</span><span class="pn">=</span><span class="st">"utf-8"</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">5</span><span class="c">  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>核实预览 · 正文排版 + 模型菜单 v2<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">6</span><span class="c">  <span class="pn">&lt;</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
+            <div class="cl"><span class="n">7</span><span class="c">    <span class="at">--accent</span><span class="pn">:</span> <span class="st">#2F6BFF</span><span class="pn">;</span></span></div>
+            <div class="cl"><span class="n">8</span><span class="c">  <span class="pn">&lt;/</span><span class="tg">style</span><span class="pn">&gt;</span></span></div>
+          </div>
+        </div>
+        <div class="ti" onclick="event.stopPropagation();this.classList.toggle('open')">
+          <div class="h"><span class="ic">⌨️</span>git add design/preview-round2.html … <span class="ch">⌄</span></div>
+        </div>
+      </div>
+
+      <div class="body">
+        <p>侧边栏改成官方的页签结构：审查和打开各开各的页签，可以同时开多个，逐个关闭。</p>
+      </div>
+
+      <div class="fcard open" id="fcard">
+        <div class="fcard-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="ch">⌄</span><b>2 个文件已更改</b>
+          <span class="add">+146</span><span class="del">-9</span>
+          <span class="undo" onclick="event.stopPropagation();undo()">⟲ 撤销</span>
+        </div>
+        <div class="files">
+          <div class="frow">
+            <span class="ic">📝</span>
+            <span class="fname">ChatViewController.swift</span>
+            <span class="fdir">App/Chat</span>
+            <span class="st">+658</span>
+            <button class="btn" onclick="openTab('swift','diff')">审查</button>
+            <button class="btn" onclick="openTab('swift','file')">打开</button>
+          </div>
+          <div class="frow">
+            <span class="ic">📝</span>
+            <span class="fname">preview-round2.html</span>
+            <span class="fdir">design</span>
+            <span class="st">+146</span>
+            <button class="btn" onclick="openTab('html','diff')">审查</button>
+            <button class="btn" onclick="openTab('html','file')">打开</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta"><span>复制</span><span>06:40</span></div>
+    </div>
+    <div class="composer"><div class="plus">＋</div><div class="ph">提出后续修改要求…</div><div class="send">↑</div></div>
+    <div class="homebar"></div>
+
+    <div class="dim" id="dim" onclick="closePanel()"></div>
+    <div class="panel" id="panel">
+      <div class="p-top">
+        <span class="col" onclick="closePanel()">⌄ 收起侧边面板</span>
+        <span class="col" style="margin-left:auto">🔍 搜索标签页</span>
+      </div>
+      <div class="p-tabs" id="tabs"></div>
+      <div id="tabbody">
+        <div class="p-crumb" id="crumb"></div>
+        <div class="p-actions">
+          <span class="ab">查看源码</span>
+          <span class="ab">更多</span>
+          <span class="ab dis">在编辑器中打开</span>
+        </div>
+        <div class="p-code" id="code"></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <ul class="tips">
+    <li><b>多页签</b>：分别点两个文件的「审查」和「打开」，页签栏会同时存在 4 个页签（2 个 Diff + 2 个文件），点页签切换，✕ 单独关闭，互不影响。</li>
+    <li><b>页签样式照官方</b>：路径 + 类型徽章（Diff）+ 关闭 ✕；激活页签蓝底描边。最右 ➕ = 新增标签。</li>
+    <li><b>双行号槽</b>：diff 页签每行左边两列行号（旧 / 新），中间竖线分隔——这是网页版 diff 的真实结构，之前我没做对。</li>
+    <li><b>写入行高亮</b>：聊天时间线里 ✏️ 展开现在是白底圆角卡 + 行号 + 语法高亮（图1 批评的点）。</li>
+    <li><b>App 实现方式</b>：侧边栏骨架原生；页签内容 = 本地生成 HTML → WKWebView 渲染（语法高亮/双行号/diff 底色都是模板的一部分）。</li>
+  </ul>
+</div>
+<script>
+const FILES = {
+  swift: {
+    path: ['ZCodeProject','ZCodeMobile','App','Chat','ChatViewController.swift'],
+    name: 'ChatViewController.swift',
+    dir: 'ZCodeMobile/App/Chat/',
+    diff: [
+      ['1','4','<span class="kw">final</span> <span class="kw">class</span> <span class="ty">WorkCell</span>: UITableViewCell {','add'],
+      ['2','5','  <span class="kw">func</span> configure(','add'],
+      ['3','6','    id: <span class="ty">String</span>, items: [<span class="ty">WorkItem</span>],','add'],
+      ['4','','  <span class="cm">// 旧参数：expandedThinkings 已删除</span>','del'],
+      ['4','7','    expanded: <span class="ty">Bool</span>,','ctx'],
+      ['5','8','    expandedItems: <span class="ty">Set</span>&lt;<span class="ty">String</span>&gt;,','add'],
+      ['6','9','    trait: <span class="ty">UITraitCollection</span>,','ctx'],
+      ['7','10','    onToggleWork: <span class="at">@escaping</span> () -&gt; <span class="ty">Void</span>,','ctx'],
+      ['8','11','    onToggleItem: <span class="at">@escaping</span> (<span class="ty">String</span>) -&gt; <span class="ty">Void</span>','add'],
+      ['9','12','  ) {','ctx'],
+      ['10','13','    headerButton.setTitle(<span class="st">"  已工作 \\(durationText())"</span>, for: .normal)','ctx'],
+      ['11','14','  }','ctx'],
+      ['12','15','}','ctx'],
+    ],
+    file: [
+      ['1','<span class="kw">import</span> <span class="ty">UIKit</span>','ctx'],
+      ['2','','ctx'],
+      ['3','<span class="kw">final class</span> <span class="ty">WorkCell</span>: UITableViewCell {','ctx'],
+      ['4','  <span class="kw">static let</span> id = <span class="st">"work"</span>','ctx'],
+      ['5','  <span class="kw">private var</span> onToggleWork: (() -&gt; <span class="ty">Void</span>)?','ctx'],
+      ['6','','ctx'],
+      ['7','  <span class="kw">override func</span> traitCollectionDidChange(_ p: <span class="ty">UITraitCollection</span>?) {','ctx'],
+      ['8','    <span class="kw">super</span>.traitCollectionDidChange(p)','ctx'],
+      ['9','  }','ctx'],
+      ['10','}','ctx'],
+    ]
+  },
+  html: {
+    path: ['ZCodeProject','ZCodeMobile','design','preview-round2.html'],
+    name: 'preview-round2.html',
+    dir: 'ZCodeMobile/design',
+    diff: [
+      ['1','1','<span class="pn">&lt;</span><span class="tg">!doctype</span> <span class="tg">html</span><span class="pn">&gt;</span>','add'],
+      ['2','2','<span class="pn">&lt;</span><span class="tg">html</span> <span class="at">lang</span><span class="pn">=</span><span class="st">"zh-CN"</span><span class="pn">&gt;</span>','add'],
+      ['3','3','<span class="pn">&lt;</span><span class="tg">head</span><span class="pn">&gt;</span>','add'],
+      ['4','','<span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>旧版预览<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span>','del'],
+      ['4','4','  <span class="pn">&lt;</span><span class="tg">meta</span> <span class="at">charset</span><span class="pn">=</span><span class="st">"utf-8"</span><span class="pn">&gt;</span>','add'],
+      ['5','5','  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>核实预览 · 正文排版 + 模型菜单 v2<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span>','add'],
+      ['6','6','<span class="pn">&lt;/</span><span class="tg">head</span><span class="pn">&gt;</span>','add'],
+    ],
+    file: [
+      ['1','<span class="pn">&lt;</span><span class="tg">!doctype</span> <span class="tg">html</span><span class="pn">&gt;</span>','ctx'],
+      ['2','<span class="pn">&lt;</span><span class="tg">html</span> <span class="at">lang</span><span class="pn">=</span><span class="st">"zh-CN"</span><span class="pn">&gt;</span>','ctx'],
+      ['3','<span class="pn">&lt;</span><span class="tg">head</span><span class="pn">&gt;</span>','ctx'],
+      ['4','  <span class="pn">&lt;</span><span class="tg">meta</span> <span class="at">charset</span><span class="pn">=</span><span class="st">"utf-8"</span><span class="pn">&gt;</span>','ctx'],
+      ['5','  <span class="pn">&lt;</span><span class="tg">title</span><span class="pn">&gt;</span>核实预览 · 正文排版 + 模型菜单 v2<span class="pn">&lt;/</span><span class="tg">title</span><span class="pn">&gt;</span>','ctx'],
+      ['6','<span class="pn">&lt;/</span><span class="tg">html</span><span class="pn">&gt;</span>','ctx'],
+    ]
+  }
+};
+
+let tabs = [];   // {id, file, mode}
+let activeId = null;
+let seq = 0;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+let toastTimer;
+
+function openTab(fileKey, mode){
+  const f = FILES[fileKey];
+  let tab = tabs.find(t => t.file === fileKey && t.mode === mode);
+  if (!tab) {
+    seq += 1;
+    tab = { id: 't' + seq, file: fileKey, mode };
+    tabs.push(tab);
+  }
+  activeId = tab.id;
+  renderTabs();
+  renderBody();
+  document.getElementById('panel').classList.add('show');
+  document.getElementById('dim').classList.add('show');
+}
+
+function closeTab(id, event){
+  event.stopPropagation();
+  const idx = tabs.findIndex(t => t.id === id);
+  tabs = tabs.filter(t => t.id !== id);
+  if (activeId === id) {
+    activeId = tabs.length ? tabs[Math.max(0, idx - 1)].id : null;
+  }
+  renderTabs();
+  renderBody();
+  if (!tabs.length) closePanel();
+}
+
+function activateTab(id){ activeId = id; renderTabs(); renderBody(); }
+
+function renderTabs(){
+  const bar = document.getElementById('tabs');
+  bar.innerHTML = '';
+  const search = document.createElement('span');
+  search.className = 'p-add';
+  search.textContent = '🔍';
+  bar.appendChild(search);
+  for (const t of tabs) {
+    const f = FILES[t.file];
+    const el = document.createElement('div');
+    el.className = 'ptab' + (t.id === activeId ? ' on' : '');
+    el.onclick = () => activateTab(t.id);
+    el.innerHTML = `<span class="nm">${f.dir}/${f.name}</span>` +
+      (t.mode === 'diff' ? '<span class="mode">Diff</span>' : '') +
+      `<span class="x" onclick="closeTab('${t.id}', event)">✕</span>`;
+    bar.appendChild(el);
+  }
+  const add = document.createElement('span');
+  add.className = 'p-add';
+  add.textContent = '＋';
+  add.onclick = () => toast('新增标签（演示）');
+  bar.appendChild(add);
+  bar.scrollLeft = bar.scrollWidth;
+}
+
+function renderBody(){
+  const tab = tabs.find(t => t.id === activeId);
+  const body = document.getElementById('tabbody');
+  if (!tab) { body.style.display = 'none'; return; }
+  body.style.display = 'block';
+  const f = FILES[tab.file];
+  document.getElementById('crumb').innerHTML =
+    f.path.map((p, i) => (i === f.path.length - 1 ? `<b>${p}</b>` : p)).join(' › ');
+  const code = document.getElementById('code');
+  code.innerHTML = f[tab.mode].map(([a, b, content, type]) => {
+    const cls = type === 'add' ? ' add' : type === 'del' ? ' del' : '';
+    const gutter = tab.mode === 'diff'
+      ? `<span class="n">${a}</span><span class="n2">${b}</span>`
+      : `<span class="n">${a}</span>`;
+    return `<div class="dl${cls}">${gutter}<span class="c">${content}</span></div>`;
+  }).join('');
+  code.scrollTop = 0;
+}
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('show');
+  document.getElementById('dim').classList.remove('show');
+}
+let toastTimer;
+</script>
+</body>
+</html>
