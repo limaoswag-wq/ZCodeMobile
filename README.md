@@ -1,57 +1,39 @@
 # ZCode Mobile
 
-电脑上的 ZCode 控制器。不是套网页，是原生 iOS 客户端。
+电脑上的 ZCode 官方网页远控，打包成 iPhone App。**界面就是官方原版网页，我们不画 UI**；App 本体只做两件事：
 
-- SwiftUI 做壳：首页、任务列表、设置
-- UIKit 做聊天：`UITableView` 气泡、TextKit Markdown、`UITextView` 输入栏
-- 长代码和 Mermaid 才嵌 `WKWebView`，不包 ZCode 网页远程控制
+1. **承载官方网页**：扫码 / 相册 / 粘贴 `https://zcode.z.ai/remote/v4?...` 链接后，全屏加载官方远控界面，原汁原味
+2. **任务通知**：退到后台后，App 用官方协议接管连接，轮询任务状态，任务**完成 / 出错**时弹系统横幅；可开 Bark 双保险
 
-任务完成时默认弹 App 自己的系统横幅。Bark 在设置里可开关，打开后电脑还会再推一条。
+## 前后台交接
 
-## 它做什么
+官方限制一个二维码同时只能有一个终端连接，所以：
 
-- 扫描电脑 ZCode「移动端远程控制」二维码，或粘贴复制出来的 `https://zcode.z.ai/remote/v4?...` 地址
-- 连上后用原生界面看任务、发消息，不嵌官方网页
-- 圆润按钮、暖色风
-- 电脑 ZCode 必须开着，活还是在 Windows 上跑
+- 前台：官方网页持有连接，正常操作
+- 退后台：网页连接断开，原生监控接管，静音保活让进程不死
+- 回前台：监控断开，网页自动重连
 
-## 电脑桥
+## 通知
 
-```powershell
-cd C:\Users\user\ZCodeProject\ZCodeMobile\bridge
-python zcode_bridge.py
+- App 横幅：默认开，后台监控到任务从「运行中」变为「完成 / 出错」时弹
+- Bark：设置里可开关，打开后填 `https://api.day.app/你的Key`，手机直接推
+
+## 构建
+
+Codemagic workflow：`zcode-mobile-unsigned-ipa`，产物 `ZCode.ipa`，巨魔安装。
+
+```bash
+python3 scripts/gen_xcodeproj.py   # 生成 Xcode 工程
 ```
 
-第一次会写出 `bridge/config.json`，终端里会打印：
+电脑端可选（Bark 双保险）：`bridge/zcode_bridge.py` + `notify_stop.py` 挂到 ZCode 的 Stop hook。不用电脑端，手机后台监控也够用。
 
-- 端口，默认 `18765`
-- 配对令牌
-- 局域网地址
-
-把这三项填进手机 App 的设置。手机和电脑要在同一 Wi-Fi。Windows 防火墙如果拦了，给 Python 放行 18765。
-
-可选：在 ZCode 桌面端建一个 Webhook 机器人，把 Callback URL、botId、secret 填进 `config.json` 的 `zcodeCallbackUrl` / `zcodeBotId` / `zcodeWebhookSecret`。这样发消息会走官方 bot 通道。不填则写入 ZCode 的 `session_input` 队列。
-
-出站 Webhook 可填：
+## 目录
 
 ```
-http://<电脑IP>:18765/zcode/outbound
+App/Web/RemoteWebView.swift      官方网页容器
+App/Chat/QRScanner…              扫码 / 相册识别
+App/Session/OfficialRelay.swift  官方 relay 协议（配对 / bootstrap / 任务列表）
+App/Session/MonitorController.swift  后台通知监控
+App/UI/RootView.swift            连接页 + 设置
 ```
-
-任务结束时如果开了 Bark，`bridge/notify_stop.py` 会再推一条。把这个脚本接到 ZCode 的 `Stop` hook 即可。
-
-## 手机
-
-Codemagic workflow：`zcode-mobile-unsigned-ipa`  
-产物：`ZCode.ipa`，用巨魔安装。
-
-打开 App → 扫描二维码连接，或点「粘贴远控地址」。
-
-同一时间这个二维码只能被一个手机端占用；网页远控开着时，App 会提示被踢。
-
-局域网桥仍然可用：设置里填电脑 IP、端口、令牌。扫码是主路径。
-
-通知：
-
-- App 横幅：默认开。手机 App 连着桥的时候，任务从进行中变成完成/出错会弹系统横幅
-- Bark：默认关。打开后填 `https://api.day.app/<key>`，电脑在任务结束时再推一条，杀 App 也能响

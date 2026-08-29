@@ -1,24 +1,33 @@
 import SwiftUI
-import UIKit
 import UserNotifications
 
 @main
 struct ZCodeMobileApp: App {
-    @StateObject private var client = BridgeClient()
+    @StateObject private var settings = AppSettings()
     @Environment(\.scenePhase) private var scenePhase
+    private let notifyDelegate = NotificationDelegate()
 
     var body: some Scene {
         WindowGroup {
-            RootView(client: client)
+            RootView(settings: settings)
                 .onAppear {
-                    UNUserNotificationCenter.current().delegate = client.notifyDelegate
-                    client.start()
+                    UNUserNotificationCenter.current().delegate = notifyDelegate
+                    LocalNotify.request()
                 }
                 .onChange(of: scenePhase) { phase in
-                    if phase == .active {
+                    switch phase {
+                    case .active:
                         UIApplication.shared.applicationIconBadgeNumber = 0
-                        client.pollNow()
-                        if client.settings.keepAlive { SilentAudio.shared.start() }
+                        // 前台：网页自己持连接，停掉原生监控避免互踢。
+                        MonitorController.shared.stop()
+                        SilentAudio.shared.stop()
+                    case .background:
+                        if settings.keepAlive {
+                            SilentAudio.shared.start()
+                        }
+                        MonitorController.shared.start()
+                    default:
+                        break
                     }
                 }
         }

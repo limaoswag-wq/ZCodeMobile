@@ -2,318 +2,233 @@ import SwiftUI
 import UIKit
 
 struct RootView: View {
-    @ObservedObject var client: BridgeClient
+    @ObservedObject var settings: AppSettings
     @State private var showSettings = false
-    @State private var showTasks = false
     @State private var showScanner = false
-    @State private var showPaste = false
+    @State private var reloadToken = 0
+
+    private var activeLink: OfficialLink? {
+        OfficialLinkParser.parse(settings.officialURL)
+    }
 
     var body: some View {
         ZStack {
-            ZTheme.canvas.ignoresSafeArea()
-            ZTheme.wash.ignoresSafeArea()
-            ChatHost(
-                client: client,
-                onSettings: { showSettings = true },
-                onTasks: { showTasks = true },
-                onScan: { showScanner = true },
-                onPaste: { showPaste = true }
-            )
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(client: client)
-        }
-        .sheet(isPresented: $showTasks) {
-            TaskListView(client: client)
+            Color(.systemBackground).ignoresSafeArea()
+            if let link = activeLink, let url = URL(string: settings.officialURL) {
+                RemoteWebView(url: url, reloadToken: $reloadToken)
+                floatingControls(link: link)
+            } else {
+                ConnectView(
+                    settings: settings,
+                    onScan: { showScanner = true },
+                    onAlbum: { showScanner = true }
+                )
+            }
         }
         .sheet(isPresented: $showScanner) {
             QRScannerHost(
                 onScan: { value in
                     showScanner = false
-                    client.connectFromScan(value)
+                    connect(from: value)
                 },
                 onCancel: { showScanner = false }
             )
             .ignoresSafeArea()
         }
-        .sheet(isPresented: $showPaste) {
-            PasteLinkView(client: client)
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet(settings: settings, onReload: {
+                reloadToken += 1
+            })
         }
     }
-}
 
-struct ChatHost: UIViewControllerRepresentable {
-    @ObservedObject var client: BridgeClient
-    var onSettings: () -> Void
-    var onTasks: () -> Void
-    var onScan: () -> Void
-    var onPaste: () -> Void
-
-    func makeUIViewController(context: Context) -> ChatViewController {
-        let controller = ChatViewController()
-        controller.client = client
-        controller.onOpenSettings = onSettings
-        controller.onOpenTasks = onTasks
-        controller.onScan = onScan
-        controller.onPaste = onPaste
-        context.coordinator.controller = controller
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: ChatViewController, context: Context) {
-        uiViewController.client = client
-        uiViewController.onOpenSettings = onSettings
-        uiViewController.onOpenTasks = onTasks
-        uiViewController.onScan = onScan
-        uiViewController.onPaste = onPaste
-        uiViewController.reloadFromClient()
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var controller: ChatViewController?
-    }
-}
-
-struct PasteLinkView: View {
-    @ObservedObject var client: BridgeClient
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft = ""
-
-    var body: some View {
-        NavigationView {
-            ZStack {
-                ZTheme.canvas.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("粘贴电脑 ZCode 复制出来的远控地址，例如 https://zcode.z.ai/remote/v4?sid=...")
-                        .font(.system(size: 14))
-                        .foregroundStyle(ZTheme.inkSoft)
-                    TextEditor(text: $draft)
-                        .font(.system(size: 14, design: .monospaced))
-                        .padding(12)
-                        .frame(minHeight: 140)
-                        .background(ZTheme.cream)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    if let error = client.errorText, !error.isEmpty {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                    }
-                    Spacer()
-                    PillButton(title: "连接", systemName: "link") {
-                        client.connectFromText(draft)
-                        if OfficialLinkParser.parse(draft) != nil {
-                            dismiss()
-                        }
-                    }
-                }
-                .padding(20)
-            }
-            .navigationTitle("粘贴远控地址")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") { dismiss() }
-                }
-            }
-            .onAppear {
-                if draft.isEmpty { draft = client.pasteDraft }
-            }
-        }
-    }
-}
-
-struct TaskListView: View {
-    @ObservedObject var client: BridgeClient
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationView {
-            ZStack {
-                ZTheme.canvas.ignoresSafeArea()
-                if client.snapshot.tasks.isEmpty {
-                    VStack(spacing: 10) {
-                        Text(client.connection.isConnected ? "这个窗口还没有任务" : "连接后再看任务")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(ZTheme.ink)
-                        Text("先扫描电脑上的远控二维码。")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(client.snapshot.tasks) { task in
-                                Button {
-                                    Task {
-                                        await client.openTask(task.id)
-                                        dismiss()
-                                    }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Circle()
-                                            .fill(task.isRunning ? ZTheme.accent : Color.secondary.opacity(0.35))
-                                            .frame(width: 10, height: 10)
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(task.title.isEmpty ? "未命名任务" : task.title)
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundStyle(ZTheme.ink)
-                                                .lineLimit(2)
-                                            Text("\(task.statusLabel) · \(task.mode ?? "build")")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        if task.id == client.snapshot.currentTaskId {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundStyle(ZTheme.accent)
-                                        }
-                                    }
-                                    .padding(16)
-                                    .background(ZTheme.cream)
-                                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                            .stroke(Color.white.opacity(0.5), lineWidth: 0.7)
-                                    )
-                                }
-                                .buttonStyle(PressScaleStyle())
-                            }
-                        }
-                        .padding(18)
-                    }
-                }
-            }
-            .navigationTitle("任务")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        Task { await client.newTask() }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(ZTheme.accent)
-                    }
-                    .disabled(!client.connection.isConnected)
-                }
-            }
-        }
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var client: BridgeClient
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section {
-                    HStack {
-                        Circle()
-                            .fill(client.connection.isConnected ? Color.green : Color.orange)
-                            .frame(width: 8, height: 8)
-                        Text(client.connection.label)
-                        Spacer()
-                        Text(client.snapshot.health.workspace ?? client.deviceTitle)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    if client.isOfficialConnected {
-                        Button("断开远控", role: .destructive) {
-                            client.disconnectOfficial()
-                        }
-                    }
-                } header: {
-                    Text("状态")
-                }
-
-                Section {
-                    Text("扫描电脑 ZCode「移动端远程控制」里的二维码，或把复制的地址粘贴到这里。")
-                        .font(.footnote)
+    /// 网页右上角旁的小齿轮，用来打开设置；不遮官方控件主区域。
+    private func floatingControls(link: OfficialLink) -> some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)
-                    TextEditor(text: $client.pasteDraft)
-                        .frame(minHeight: 88)
-                        .font(.system(size: 13, design: .monospaced))
-                    Button("用这个地址连接") {
-                        client.connectFromText(client.pasteDraft)
-                    }
-                } header: {
-                    Text("官方远控")
-                } footer: {
-                    Text("连上的是当前桌面窗口，不是把网页嵌进 App。同一时间只能有一个手机端占用这个二维码。")
+                        .frame(width: 30, height: 30)
+                        .background(.thinMaterial, in: Circle())
                 }
+                .padding(.trailing, 66)
+                .padding(.top, 2)
+            }
+            Spacer()
+        }
+    }
 
-                Section {
-                    TextField("电脑 IP 或主机名", text: $client.settings.host)
+    private func connect(from raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let link = OfficialLinkParser.parse(trimmed) else {
+            ConnectPasteError.shared.message = "这不是 ZCode 远控链接，请扫描电脑端二维码或粘贴完整链接。"
+            return
+        }
+        settings.officialURL = trimmed
+        MonitorController.shared.stop()
+    }
+}
+
+enum ConnectPasteError {
+    static let shared = PasteErrorBox()
+}
+
+final class PasteErrorBox: ObservableObject {
+    @Published var message: String?
+}
+
+struct ConnectView: View {
+    @ObservedObject var settings: AppSettings
+    var onScan: () -> Void
+    var onAlbum: () -> Void
+    @State private var paste = ""
+    @StateObject private var errorBox = ConnectPasteError.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
+            Image(systemName: "terminal.fill")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(Color.white)
+                .frame(width: 72, height: 72)
+                .background(Color(.label), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            Text("ZCode 远程控制")
+                .font(.system(size: 22, weight: .semibold))
+                .padding(.top, 18)
+            Text("扫描电脑端「移动端远程控制」二维码，或粘贴复制的链接。连接后就是官方原版界面；退到后台会自动监控任务并发通知。")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .padding(.horizontal, 32)
+            Spacer(minLength: 12)
+
+            VStack(spacing: 12) {
+                Button(action: onScan) {
+                    Label("扫描二维码连接", systemImage: "qrcode.viewfinder")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                Button(action: onAlbum) {
+                    Label("从相册识别", systemImage: "photo.on.rectangle")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                HStack(spacing: 10) {
+                    TextField("https://zcode.z.ai/remote/v4?sid=…", text: $paste)
+                        .textFieldStyle(.roundedBorder)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
-                    TextField("端口", text: $client.settings.port)
-                        .keyboardType(.numberPad)
-                    SecureField("配对令牌", text: $client.settings.token)
-                    Button("连接局域网桥") { client.pollNow() }
+                        .autocorrectionDisabled()
+                        .font(.system(size: 13, design: .monospaced))
+                    Button("连接") {
+                        let trimmed = paste.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if OfficialLinkParser.parse(trimmed) != nil {
+                            errorBox.message = nil
+                            settings.officialURL = trimmed
+                        } else {
+                            errorBox.message = "这不是 ZCode 远控链接，请检查后重试。"
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                if let message = errorBox.message, !message.isEmpty {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 24)
+
+            Spacer(minLength: 24)
+            Text("任务完成或出错时会弹系统通知；Bark 推送可在设置里打开。")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 16)
+        }
+        .onAppear {
+            paste = settings.officialURL
+        }
+    }
+}
+
+struct SettingsSheet: View {
+    @ObservedObject var settings: AppSettings
+    var onReload: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private var link: OfficialLink? { OfficialLinkParser.parse(settings.officialURL) }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("设备", value: link?.deviceName ?? "未知")
+                    LabeledContent("地址", value: String((settings.officialURL as NSString).prefix(48)) + "…")
+                        .font(.footnote)
+                    Button {
+                        onReload()
+                        dismiss()
+                    } label: {
+                        Label("刷新网页", systemImage: "arrow.clockwise")
+                    }
+                    Button(role: .destructive) {
+                        settings.officialURL = ""
+                        MonitorController.shared.stop()
+                        dismiss()
+                    } label: {
+                        Label("断开连接，重新扫码", systemImage: "link.badge.plus")
+                    }
                 } header: {
-                    Text("电脑桥接（可选）")
+                    Text("连接")
                 } footer: {
-                    Text("扫码连不上发消息时，可以再开电脑上的 bridge/zcode_bridge.py，用局域网同步聊天记录。")
+                    Text("前台由官方网页保持连接；退到后台后由 App 接管监控，回前台网页自动重连。")
                 }
 
                 Section {
-                    Toggle("App 横幅通知", isOn: .constant(true))
-                        .disabled(true)
-                        .foregroundStyle(.secondary)
-                    Toggle("Bark 远程推送", isOn: $client.settings.barkEnabled)
-                        .onChange(of: client.settings.barkEnabled) { _ in
-                            Task { await client.syncBark() }
-                        }
-                    if client.settings.barkEnabled {
-                        TextField("Bark URL", text: $client.settings.barkURL)
+                    Toggle("Bark 推送", isOn: $settings.barkEnabled)
+                    if settings.barkEnabled {
+                        TextField("https://api.day.app/你的Key", text: $settings.barkURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
-                            .onChange(of: client.settings.barkURL) { _ in
-                                Task { await client.syncBark() }
-                            }
+                            .autocorrectionDisabled()
                     }
-                    Toggle("后台保活（静音播放）", isOn: $client.settings.keepAlive)
-                        .onChange(of: client.settings.keepAlive) { value in
-                            if value { SilentAudio.shared.start() } else { SilentAudio.shared.stop() }
-                        }
                 } header: {
                     Text("通知")
                 } footer: {
-                    Text("任务完成时默认用系统横幅。Bark 关掉就只走 App 自己的通知；打开后电脑还会再推一条到 Bark。")
+                    Text("任务完成/出错默认弹 App 通知；打开 Bark 后会同时推送到你的 iPhone Bark。")
                 }
 
                 Section {
-                    Toggle("显示思考过程", isOn: $client.settings.showReasoning)
-                    Button("停止当前任务") {
-                        Task { await client.stopTask() }
-                    }
-                    Button("新建任务") {
-                        Task { await client.newTask() }
-                    }
+                    Toggle("后台保活（静音播放）", isOn: $settings.keepAlive)
                 } header: {
-                    Text("会话")
+                    Text("后台")
+                } footer: {
+                    Text("退到后台时静音播放保持进程存活，通知才可靠。锁屏后若不弹通知，回 app 检查这个开关。")
                 }
 
-                if let error = client.errorText, !error.isEmpty {
-                    Section("最近错误") {
-                        Text(error).foregroundStyle(.orange)
-                    }
+                Section {
+                    LabeledContent("版本", value: "1.1.0")
                 }
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("完成") { dismiss() }
                 }
             }
         }
+        .presentationDetents([.medium, .large])
     }
 }

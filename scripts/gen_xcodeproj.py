@@ -15,25 +15,21 @@ ids = {k: uid() for k in [
     "appSources", "appResources", "appFrameworks",
     "appGroup", "productsGroup", "frameworksGroup", "appProduct",
     "assets", "privacy", "appEnt", "appPlist",
-    "themeGroup", "sessionGroup", "uiGroup", "chatGroup", "audioGroup",
+    "themeGroup", "sessionGroup", "uiGroup", "chatGroup", "audioGroup", "webGroup",
 ]}
 
 app_files = [
     ("ZCodeMobileApp.swift", "App/ZCodeMobileApp.swift"),
-    ("Theme.swift", "App/Theme/Theme.swift"),
     ("Models.swift", "App/Session/Models.swift"),
     ("AppSettings.swift", "App/Session/AppSettings.swift"),
-    ("BridgeClient.swift", "App/Session/BridgeClient.swift"),
     ("OfficialLink.swift", "App/Session/OfficialLink.swift"),
     ("OfficialRelay.swift", "App/Session/OfficialRelay.swift"),
     ("VSCodeIPC.swift", "App/Session/VSCodeIPC.swift"),
     ("RpcFrame.swift", "App/Session/RpcFrame.swift"),
+    ("MonitorController.swift", "App/Session/MonitorController.swift"),
     ("NotificationCenter.swift", "App/Session/NotificationCenter.swift"),
     ("RootView.swift", "App/UI/RootView.swift"),
-    ("MarkdownRenderer.swift", "App/Chat/MarkdownRenderer.swift"),
-    ("ComposerView.swift", "App/Chat/ComposerView.swift"),
-    ("InsertWebView.swift", "App/Chat/InsertWebView.swift"),
-    ("ChatViewController.swift", "App/Chat/ChatViewController.swift"),
+    ("RemoteWebView.swift", "App/Web/RemoteWebView.swift"),
     ("QRScannerViewController.swift", "App/Chat/QRScannerViewController.swift"),
     ("SilentAudio.swift", "App/Audio/SilentAudio.swift"),
 ]
@@ -153,6 +149,7 @@ subgroup(ids["sessionGroup"], "Session", "App/Session/")
 subgroup(ids["uiGroup"], "UI", "App/UI/")
 subgroup(ids["chatGroup"], "Chat", "App/Chat/")
 subgroup(ids["audioGroup"], "Audio", "App/Audio/")
+subgroup(ids["webGroup"], "Web", "App/Web/")
 
 add(f"\t\t{ids['productsGroup']} /* Products */ = {{")
 add("\t\t\tisa = PBXGroup;")

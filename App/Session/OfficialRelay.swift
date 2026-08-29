@@ -32,6 +32,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     }
 
     private(set) var state: State = .idle
+    /// 监控模式：只配对 + 拉任务列表做通知，不开工作区桥。
+    var monitorOnly = false
     private(set) var link: OfficialLink?
     private(set) var workspaces: [WorkspaceInfo] = []
     private(set) var tasks: [TaskSummary] = []
@@ -274,7 +276,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         if activeTaskId == nil { activeTaskId = tasks.first?.id }
         if activeWorkspaceKey == nil { activeWorkspaceKey = workspaces.first?.key }
         onSnapshot?()
-        openWorkspaceBridgeIfNeeded()
+        if !monitorOnly {
+            openWorkspaceBridgeIfNeeded()
+        }
     }
 
     private func applyWorkspaceList(_ result: [String: Any]) {
