@@ -9,22 +9,6 @@ struct RootView: View {
     @State private var showModelMenu = false
     @State private var showAttach = false
 
-    private func thoughtForModel(_ model: ModelProviderInfo.ModelInfo) -> String {
-        if model.levels.contains(where: { $0.value == app.selectedThought }) {
-            return app.selectedThought
-        }
-        return model.levels.last?.value ?? app.selectedThought
-    }
-
-    private func modelRow(_ provider: ModelProviderInfo, _ model: ModelProviderInfo.ModelInfo) -> some View {
-        let selected = provider.id == app.selectedProviderId &&
-            (model.id == app.selectedModelId || model.name == app.selectedModelId)
-        return row(primary: model.name, selected: selected) {
-            app.switchModel(providerId: provider.id, modelId: model.id, thought: thoughtForModel(model))
-            onDismiss()
-        }
-    }
-
     var body: some View {
         ZStack {
             ZTheme.canvas.ignoresSafeArea()
@@ -613,6 +597,22 @@ struct ModelPopover: View {
 
     private var thoughtLevels: [ModelLevel] {
         selectedModel?.levels ?? []
+    }
+
+    private func thoughtForModel(_ model: ModelProviderInfo.ModelInfo) -> String {
+        if model.levels.contains(where: { $0.value == app.selectedThought }) {
+            return app.selectedThought
+        }
+        return model.levels.last?.value ?? app.selectedThought
+    }
+
+    private func modelRow(_ provider: ModelProviderInfo, _ model: ModelProviderInfo.ModelInfo) -> some View {
+        let selected = provider.id == app.selectedProviderId &&
+            (model.id == app.selectedModelId || model.name == app.selectedModelId)
+        return row(primary: model.name, selected: selected) {
+            app.switchModel(providerId: provider.id, modelId: model.id, thought: thoughtForModel(model))
+            onDismiss()
+        }
     }
 
     var body: some View {
