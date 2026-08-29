@@ -9,8 +9,8 @@ final class MonitorController {
     let relay = OfficialRelay()
 
     private var pollTimer: Timer?
+    private var startToken = 0
     private var lastStatus: [String: String] = [:]
-    private var sawFirstSnapshot = false
 
     private init() {
         relay.monitorOnly = true
@@ -20,6 +20,20 @@ final class MonitorController {
     }
 
     var isMonitoring: Bool { relay.state != .idle }
+
+    /// 后台延迟启动：先给官方网页时间优雅断开自己的连接，避免把网页踢下线。
+    func scheduleStart(after seconds: TimeInterval = 2.5) {
+        startToken += 1
+        let token = startToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            guard let self, token == self.startToken else { return }
+            self.start()
+        }
+    }
+
+    func cancelScheduledStart() {
+        startToken += 1
+    }
 
     func start() {
         guard let raw = UserDefaults.standard.string(forKey: "officialURL"),
@@ -40,9 +54,10 @@ final class MonitorController {
     }
 
     func stop() {
+        cancelScheduledStart()
         stopTimer()
         relay.disconnect()
-        sawFirstSnapshot = false
+        // lastStatus 保留：交接空档期完成的任务靠 updatedAt 判新鲜度，不漏报。
     }
 
     private func stopTimer() {
@@ -54,17 +69,19 @@ final class MonitorController {
         let tasks = relay.tasks
         defer {
             lastStatus = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0.status) })
-            sawFirstSnapshot = true
         }
-        // 第一次快照只建基线，不通知，避免刚退后台就轰炸。
-        guard sawFirstSnapshot else { return }
+        let now = Date().timeIntervalSince1970 * 1000
         for task in tasks {
             guard let old = lastStatus[task.id], old != task.status else { continue }
             let wasActive = old == "running" || old == "waiting"
             guard wasActive else { continue }
+            guard task.status == "completed" || task.status == "error" else { continue }
+            // 只报最近完成/出错的：过滤前台网页期间已看过、或基线过旧的变化。
+            let fresh = task.updatedAt > 0 && (now - Double(task.updatedAt)) < 90_000
+            guard fresh else { continue }
             if task.status == "completed" {
                 fire(title: "任务完成", body: task.title, taskId: task.id)
-            } else if task.status == "error" {
+            } else {
                 fire(title: "任务出错", body: task.title, taskId: task.id)
             }
         }

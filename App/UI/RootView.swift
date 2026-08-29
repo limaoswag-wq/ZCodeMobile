@@ -3,9 +3,11 @@ import UIKit
 
 struct RootView: View {
     @ObservedObject var settings: AppSettings
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
     @State private var showScanner = false
     @State private var reloadToken = 0
+    @State private var recoverToken = 0
 
     private var activeLink: OfficialLink? {
         OfficialLinkParser.parse(settings.officialURL)
@@ -15,7 +17,7 @@ struct RootView: View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
             if let link = activeLink, let url = URL(string: settings.officialURL) {
-                RemoteWebView(url: url, reloadToken: $reloadToken)
+                RemoteWebView(url: url, reloadToken: $reloadToken, recoverToken: $recoverToken)
                 floatingControls(link: link)
             } else {
                 ConnectView(
@@ -23,6 +25,12 @@ struct RootView: View {
                     onScan: { showScanner = true },
                     onAlbum: { showScanner = true }
                 )
+            }
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active, activeLink != nil {
+                // 回前台：监控已停，检查页面是否被踢，被踢就自动刷新重连。
+                recoverToken += 1
             }
         }
         .sheet(isPresented: $showScanner) {
@@ -218,7 +226,7 @@ struct SettingsSheet: View {
                 }
 
                 Section {
-                    LabeledContent("版本", value: "1.1.0")
+                    LabeledContent("版本", value: "1.1.1")
                 }
             }
             .navigationTitle("设置")

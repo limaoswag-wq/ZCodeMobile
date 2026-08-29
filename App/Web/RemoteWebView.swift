@@ -5,6 +5,7 @@ import WebKit
 struct RemoteWebView: UIViewRepresentable {
     let url: URL
     @Binding var reloadToken: Int
+    @Binding var recoverToken: Int
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -31,6 +32,12 @@ struct RemoteWebView: UIViewRepresentable {
         if context.coordinator.lastReload != reloadToken {
             context.coordinator.lastReload = reloadToken
             webView.reload()
+            return
+        }
+        if context.coordinator.lastRecover != recoverToken {
+            context.coordinator.lastRecover = recoverToken
+            // 回前台稍等片刻：先给页面自己重连的机会，仍在接管/报错页才强制刷新。
+            context.coordinator.scheduleRecoverIfKicked()
         }
     }
 
@@ -40,6 +47,25 @@ struct RemoteWebView: UIViewRepresentable {
         var webView: WKWebView?
         var lastURL: URL?
         var lastReload = 0
+        var lastRecover = 0
+
+        /// 官方页面被踢后停在「已被其他设备接管」终态，不会自愈；检测到就整页刷新重连。
+        func scheduleRecoverIfKicked() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self, let webView = self.webView else { return }
+                let js = """
+                (() => {
+                  const t = document.body ? document.body.innerText : '';
+                  if (t.includes('已被其他设备接管') || t.includes('KICKED') || t.includes('连接已断开') || t.includes('二维码失效')) return 'kicked';
+                  return 'ok';
+                })()
+                """
+                webView.evaluateJavaScript(js) { [weak self] result, _ in
+                    guard let self, (result as? String) == "kicked", let webView = self.webView else { return }
+                    webView.reload()
+                }
+            }
+        }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             webView.scrollView.backgroundColor = .systemBackground

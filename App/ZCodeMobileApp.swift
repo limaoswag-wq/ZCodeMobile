@@ -25,7 +25,8 @@ struct ZCodeMobileApp: App {
                         if settings.keepAlive {
                             SilentAudio.shared.start()
                         }
-                        MonitorController.shared.start()
+                        // 延迟 2.5s：先让官方网页的 WebSocket 优雅断开，监控再接管，网页就不会被踢。
+                        MonitorController.shared.scheduleStart(after: 2.5)
                     default:
                         break
                     }
