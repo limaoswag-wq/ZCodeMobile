@@ -218,7 +218,7 @@ struct SidebarDrawer: View {
                 .background(ZTheme.canvas)
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 26, topTrailingRadius: 26))
                 .shadow(color: .black.opacity(0.18), radius: 24, x: 6, y: 0)
-            Spacer(minWidth: 0)
+            Spacer(minLength: 0)
         }
         .transition(.move(edge: .leading))
     }
