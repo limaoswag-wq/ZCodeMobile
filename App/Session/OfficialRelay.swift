@@ -499,6 +499,23 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    /// 协议调试落盘：Documents/relay_debug.json，最多留 40 条，方便远程排查字段。
+    func writeDebug(_ label: String, _ object: Any) {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        guard let dir = docs else { return }
+        let url = dir.appendingPathComponent("relay_debug.json")
+        var existing: [[String: Any]] = []
+        if let data = try? Data(contentsOf: url),
+           let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            existing = arr
+        }
+        existing.append(["ts": nowMs(), "label": label, "data": object])
+        if existing.count > 40 { existing = Array(existing.suffix(40)) }
+        if let out = try? JSONSerialization.data(withJSONObject: existing, options: [.prettyPrinted, .sortedKeys]) {
+            try? out.write(to: url)
+        }
+    }
+
     func loadMessages(for taskId: String) {
         Task { await loadMessagesAsync(for: taskId) }
     }
@@ -511,8 +528,10 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             args["limit"] = 120
             let result = try await channels.call(channel: "zcode-agent", method: "conversationRowsRangeV4", args: [args])
             let messages = Self.parseMessages(result.jsonObject)
+            writeDebug("rowsRange", ["taskId": taskId, "raw": result.jsonObject ?? NSNull()])
             DispatchQueue.main.async { self.onMessages?(taskId, messages) }
         } catch {
+            writeDebug("rowsRange-error", ["taskId": taskId, "error": error.localizedDescription])
             // 未订阅时桌面端会拒；配对、任务列表、发送不受影响。
         }
     }
@@ -536,6 +555,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             ]
             let result = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
             let status = result.dictionary?["status"] as? String
+            if status != "accepted" && status != "duplicate" {
+                writeDebug("sendText-rejected", ["raw": result.jsonObject ?? NSNull()])
+            }
             DispatchQueue.main.async {
                 if status == "accepted" || status == "duplicate" {
                     self.onSendResult?(true, nil)
@@ -576,6 +598,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                let sessionId = nested["sessionId"] as? String {
                 newId = sessionId
             }
+            writeDebug("createSession", ["raw": result.jsonObject ?? NSNull()])
             DispatchQueue.main.async {
                 if let newId {
                     self.activeTaskId = newId
@@ -583,7 +606,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                     self.onSnapshot?()
                     self.loadMessages(for: newId)
                 } else {
-                    self.onSendResult?(false, "桌面端没有返回新对话")
+                    let status = result.dictionary?["status"] as? String ?? "?"
+                    let reason = result.dictionary?["reasonCode"] as? String ?? "-"
+                    self.onSendResult?(false, "新建失败 status=\(status) reason=\(reason)")
                 }
             }
         } catch {
@@ -764,6 +789,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         for row in rows {
             let kind = row["kind"] as? String ?? ""
             let text = (row["text"] as? String)
+                ?? (row["thinking"] as? String)
+                ?? (row["content"] as? String)
                 ?? (row["inputText"] as? String)
                 ?? ""
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -788,6 +815,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                     blocks: [ChatBlock(id: "\(id)-reason", kind: "reasoning", text: trimmed)]
                 ))
             } else if kind == "toolCall" {
+                guard !trimmed.isEmpty else { continue }
                 messages.append(ChatMessage(
                     id: id, role: "assistant", kind: kind, createdAt: createdAt,
                     blocks: [ChatBlock(

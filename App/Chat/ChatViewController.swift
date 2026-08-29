@@ -572,7 +572,6 @@ final class WorkCell: UITableViewCell {
         backgroundColor = .clear
         headerButton.translatesAutoresizingMaskIntoConstraints = false
         headerButton.contentHorizontalAlignment = .left
-        headerButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 0)
         headerButton.addTarget(self, action: #selector(tapHeader), for: .touchUpInside)
 
         chevron.translatesAutoresizingMaskIntoConstraints = false
@@ -599,8 +598,8 @@ final class WorkCell: UITableViewCell {
             headerButton.heightAnchor.constraint(equalToConstant: 22),
             chevron.centerYAnchor.constraint(equalTo: headerButton.centerYAnchor),
             chevron.leadingAnchor.constraint(equalTo: headerButton.trailingAnchor, constant: 2),
-            chevron.widthAnchor.constraint(equalToConstant: 11),
-            chevron.heightAnchor.constraint(equalToConstant: 11),
+            chevron.widthAnchor.constraint(equalToConstant: 12),
+            chevron.heightAnchor.constraint(equalToConstant: 12),
             leftBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 19),
             leftBar.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
             leftBar.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
@@ -644,10 +643,14 @@ final class WorkCell: UITableViewCell {
         thinkingHandlers.removeAll()
         nextThinkingTag = 0
 
-        headerButton.setTitle("已工作 \(durationText())", for: .normal)
+        headerButton.setTitle("  已工作 \(durationText())", for: .normal)
         headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
         headerButton.titleLabel?.font = .systemFont(ofSize: 13)
-        chevron.image = UIImage(systemName: expanded ? "chevron.up" : "chevron.down")
+        chevron.image = UIImage(
+            systemName: expanded ? "chevron.up" : "chevron.down",
+            withConfiguration: UIImage.SymbolConfiguration(weight: .semibold)
+        )
+        chevron.tintColor = ZUIColor.inkSoft(trait)
         container.isHidden = !expanded
 
         container.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -678,7 +681,7 @@ final class WorkCell: UITableViewCell {
     }
 
     func refreshDurationIfVisible() {
-        headerButton.setTitle("已工作 \(durationText())", for: .normal)
+        headerButton.setTitle("  已工作 \(durationText())", for: .normal)
     }
 
     private func durationText() -> String {
@@ -686,6 +689,7 @@ final class WorkCell: UITableViewCell {
             let seconds = Int(Date().timeIntervalSince1970 * 1000) - startMs
             return TimeFormat.duration(seconds: max(1, seconds / 1000))
         }
+        guard startMs > 0, endMs > 0 else { return "" }
         let seconds = max(1, (endMs - startMs) / 1000)
         return TimeFormat.duration(seconds: seconds)
     }
@@ -699,7 +703,6 @@ final class WorkCell: UITableViewCell {
         let head = UIButton(type: .system)
         head.translatesAutoresizingMaskIntoConstraints = false
         head.contentHorizontalAlignment = .left
-        head.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 0)
         head.setTitle("思考 · 持续了几秒", for: .normal)
         head.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
         head.titleLabel?.font = .systemFont(ofSize: 12.5)
@@ -803,9 +806,9 @@ final class WorkCell: UITableViewCell {
 
     private func makePlainRow(_ text: String, trait: UITraitCollection) -> UIView {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 13)
-        label.textColor = ZUIColor.inkSoft(trait)
-        label.numberOfLines = 3
+        label.font = .systemFont(ofSize: 13.5)
+        label.textColor = ZUIColor.ink(trait)
+        label.numberOfLines = 0
         label.text = text
         return label
     }

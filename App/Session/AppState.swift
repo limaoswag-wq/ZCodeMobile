@@ -129,11 +129,19 @@ final class AppState: ObservableObject {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         if let taskId = activeTaskId {
+            // 乐观上屏：真实数据 1 秒后由 rowsRange 覆盖。
+            messages.append(ChatMessage(
+                id: "local-\(UUID().uuidString)",
+                role: "user",
+                kind: "userInput",
+                createdAt: Int(Date().timeIntervalSince1970 * 1000),
+                blocks: [ChatBlock(id: "local-text", kind: "text", text: trimmed)]
+            ))
+            objectWillChange.send()
             relay.sendText(trimmed, taskId: taskId)
         } else {
             relay.startNewChat(firstInput: trimmed)
         }
-        // 乐观刷新：稍后拉一次会话内容。
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             self?.refreshActiveMessages()
         }
@@ -185,7 +193,7 @@ final class AppState: ObservableObject {
     private func applyRelaySnapshot() {
         let previous = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         tasks = relay.tasks
-        if activeTaskId == nil { activeTaskId = relay.activeTaskId }
+        // 不自动采用桌面端的 activeTaskId：启动只停在首页，点侧边栏才进会话。
         objectWillChange.send()
         diffNotifications(previous: previous)
         startPollingIfRunning()

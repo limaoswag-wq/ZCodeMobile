@@ -356,12 +356,12 @@ struct SidebarDrawer: View {
     }
 }
 
-// MARK: - 模型菜单
+// MARK: - 模型菜单（设计稿⑤：卡片分组）
 
 struct ModelMenuSheet: View {
     @ObservedObject var app: AppState
     @Environment(\.dismiss) private var dismiss
-    @State private var thoughtLevels: [String] = ["低", "中", "高", "极高"]
+    private let thoughtLevels = ["低", "中", "高", "极高"]
 
     var body: some View {
         NavigationStack {
@@ -375,56 +375,19 @@ struct ModelMenuSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        ForEach(app.providers) { provider in
-                            Section(provider.name) {
-                                ForEach(provider.models) { model in
-                                    Button {
-                                        app.switchModel(providerId: provider.id, modelId: model.id, thought: app.selectedThought)
-                                        dismiss()
-                                    } label: {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(model.name)
-                                                    .font(.system(size: 14.5, weight: .semibold))
-                                                    .foregroundStyle(ZTheme.ink)
-                                            }
-                                            Spacer()
-                                            if provider.id == app.selectedProviderId && model.id == app.selectedModelId {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundStyle(ZTheme.accent)
-                                                    .font(.system(size: 14, weight: .semibold))
-                                            }
-                                        }
-                                    }
-                                }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 22) {
+                            ForEach(app.providers) { provider in
+                                providerSection(provider)
                             }
+                            thoughtSection
                         }
-                        Section("思考等级") {
-                            ForEach(thoughtLevels, id: \.self) { level in
-                                Button {
-                                    if let provider = app.providers.first(where: { $0.id == app.selectedProviderId }) {
-                                        app.switchModel(providerId: provider.id, modelId: app.selectedModelId, thought: level)
-                                    }
-                                    dismiss()
-                                } label: {
-                                    HStack {
-                                        Text(level)
-                                            .font(.system(size: 14.5, weight: .semibold))
-                                            .foregroundStyle(ZTheme.ink)
-                                        Spacer()
-                                        if level == app.selectedThought {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(ZTheme.accent)
-                                                .font(.system(size: 14, weight: .semibold))
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
                     }
                 }
             }
+            .background(ZTheme.surface)
             .navigationTitle("模型与思考")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -432,8 +395,106 @@ struct ModelMenuSheet: View {
                     Button("完成") { dismiss() }
                 }
             }
+            .onAppear {
+                autoResolveProvider()
+            }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// 本机默认 providerId 可能对不上桌面端真实 id，按已选模型名自动定位。
+    private func autoResolveProvider() {
+        guard !app.providers.isEmpty else { return }
+        if app.providers.contains(where: { $0.id == app.selectedProviderId }) { return }
+        let containing = app.providers.filter { p in
+            p.models.contains { $0.id == app.selectedModelId || $0.name == app.selectedModelId }
+        }
+        let picked = containing.first { $0.id.lowercased().contains("zai") } ?? containing.first
+        if let picked {
+            app.selectedProviderId = picked.id
+        }
+    }
+
+    private func isSelected(_ provider: ModelProviderInfo, _ model: ModelProviderInfo.ModelInfo) -> Bool {
+        provider.id == app.selectedProviderId && (model.id == app.selectedModelId || model.name == app.selectedModelId)
+    }
+
+    private func providerSection(_ provider: ModelProviderInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(provider.name.uppercased())
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ZTheme.inkFaint)
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                ForEach(Array(provider.models.enumerated()), id: \.element.id) { index, model in
+                    if index > 0 {
+                        Rectangle().fill(ZTheme.line).frame(height: 0.7)
+                            .padding(.leading, 16)
+                    }
+                    Button {
+                        app.switchModel(providerId: provider.id, modelId: model.id, thought: app.selectedThought)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(model.name)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ZTheme.ink)
+                            Spacer()
+                            if isSelected(provider, model) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(ZTheme.accent)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 48)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(ZTheme.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private var thoughtSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("思考等级")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ZTheme.inkFaint)
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                ForEach(Array(thoughtLevels.enumerated()), id: \.element) { index, level in
+                    if index > 0 {
+                        Rectangle().fill(ZTheme.line).frame(height: 0.7)
+                            .padding(.leading, 16)
+                    }
+                    Button {
+                        if let provider = app.providers.first(where: { $0.id == app.selectedProviderId }) {
+                            app.switchModel(providerId: provider.id, modelId: app.selectedModelId, thought: level)
+                        }
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(level)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ZTheme.ink)
+                            Spacer()
+                            if level == app.selectedThought {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(ZTheme.accent)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 48)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(ZTheme.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 }
 
