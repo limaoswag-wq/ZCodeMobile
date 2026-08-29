@@ -20,7 +20,6 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     private var observer: NSObjectProtocol?
     private var runningTimer: Timer?
     private var expandedWorks: Set<String> = []
-    private var expandedThinkings: Set<String> = []
     private var lastSignature = ""
 
     enum ChatRow {
