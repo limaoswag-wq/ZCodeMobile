@@ -53,12 +53,13 @@ final class AppState: ObservableObject {
 
         relay.onStateChange = { [weak self] state in
             guard let self else { return }
-            self.connection = state == .paired ? .online
-                : state == .waiting ? .waiting
-                : state == .failed(let message) ? .offline(message)
-                : state == .idle ? .idle
-                : .connecting
-            if case .offline = state { self.toast = nil }
+            switch state {
+            case .paired: self.connection = .online
+            case .waiting: self.connection = .waiting
+            case .failed(let message): self.connection = .offline(message)
+            case .idle: self.connection = .idle
+            case .connecting, .authenticating: self.connection = .connecting
+            }
         }
         relay.onSnapshot = { [weak self] in
             self?.applyRelaySnapshot()
