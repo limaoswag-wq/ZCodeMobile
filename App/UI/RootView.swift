@@ -26,7 +26,13 @@ struct RootView: View {
                     onNewChat: {
                         app.startNewChat()
                     },
-                    onOpenAttach: { showAttach = true }
+                    onOpenAttach: { showAttach = true },
+                    onReviewFile: { file in
+                        app.openPanel(file: file, mode: "diff")
+                    },
+                    onOpenFile: { file in
+                        app.openPanel(file: file, mode: "file")
+                    }
                 )
                 .ignoresSafeArea(.keyboard, edges: .bottom)
             } else {
@@ -59,8 +65,25 @@ struct RootView: View {
                     .padding(.top, 58)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
+
+            if !app.panelTabs.isEmpty {
+                Color.black.opacity(0.32)
+                    .ignoresSafeArea()
+                    .onTapGesture { app.panelTabs.removeAll() }
+                ReviewPanelDrawer(app: app, isShown: panelBinding)
+                    .transition(.move(edge: .trailing))
+            }
         }
         .animation(.easeOut(duration: 0.16), value: showModelMenu)
+        .animation(.easeOut(duration: 0.22), value: !app.panelTabs.isEmpty)
+    }
+
+    private var panelBinding: Binding<Bool> {
+        Binding(
+            get: { !app.panelTabs.isEmpty },
+            set: { if !$0 { app.panelTabs.removeAll() } }
+        )
+    }
         .overlay {
             if showSidebar, app.hasLink {
                 SideBarDim(showSidebar: $showSidebar)
@@ -186,6 +209,8 @@ struct ChatHost: UIViewControllerRepresentable {
     var onOpenModelMenu: () -> Void
     var onNewChat: () -> Void
     var onOpenAttach: () -> Void
+    var onReviewFile: (FileChangeInfo) -> Void
+    var onOpenFile: (FileChangeInfo) -> Void
 
     func makeUIViewController(context: Context) -> ChatViewController {
         let controller = ChatViewController()
@@ -195,6 +220,8 @@ struct ChatHost: UIViewControllerRepresentable {
         controller.onOpenModelMenu = onOpenModelMenu
         controller.onNewChat = onNewChat
         controller.onOpenAttach = onOpenAttach
+        controller.onReviewFile = onReviewFile
+        controller.onOpenFile = onOpenFile
         context.coordinator.controller = controller
         return controller
     }
@@ -206,6 +233,8 @@ struct ChatHost: UIViewControllerRepresentable {
         controller.onOpenModelMenu = onOpenModelMenu
         controller.onNewChat = onNewChat
         controller.onOpenAttach = onOpenAttach
+        controller.onReviewFile = onReviewFile
+        controller.onOpenFile = onOpenFile
         controller.reloadFromApp()
     }
 
@@ -561,6 +590,16 @@ struct ModelPopover: View {
     var onDismiss: () -> Void
     @State private var thoughtExpanded = false
 
+    /// 思考等级跟随当前选中模型的 reasoning.levels。
+    private var selectedModel: ModelProviderInfo.ModelInfo? {
+        guard let provider = app.providers.first(where: { $0.id == app.selectedProviderId }) else { return nil }
+        return provider.models.first { $0.id == app.selectedModelId }
+    }
+
+    private var thoughtLevels: [ModelLevel] {
+        selectedModel?.levels ?? []
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView(showsIndicators: false) {
@@ -571,12 +610,18 @@ struct ModelPopover: View {
                                 .padding(.horizontal, 14)
                         }
                         ForEach(provider.models) { model in
+                            let thought: String
+                            if model.levels.contains(where: { $0.value == app.selectedThought }) {
+                                thought = app.selectedThought
+                            } else {
+                                thought = model.levels.last?.value ?? app.selectedThought
+                            }
                             row(
                                 primary: model.name,
                                 selected: provider.id == app.selectedProviderId &&
                                     (model.id == app.selectedModelId || model.name == app.selectedModelId)
                             ) {
-                                app.switchModel(providerId: provider.id, modelId: model.id, thought: app.selectedThought)
+                                app.switchModel(providerId: provider.id, modelId: model.id, thought: thought)
                                 onDismiss()
                             }
                         }
@@ -588,57 +633,59 @@ struct ModelPopover: View {
 
             Rectangle().fill(ZTheme.line).frame(height: 0.7)
 
-            Button {
-                withAnimation(.easeOut(duration: 0.16)) { thoughtExpanded.toggle() }
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("思考等级")
-                            .font(.system(size: 14.5, weight: .semibold))
-                            .foregroundStyle(ZTheme.ink)
-                        Text(app.selectedThought)
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(ZTheme.inkSoft)
-                    }
-                    Spacer()
-                    Image(systemName: thoughtExpanded ? "chevron.up" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(ZTheme.inkFaint)
-                }
-                .padding(.horizontal, 14)
-                .frame(minHeight: 52)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if thoughtExpanded {
-                VStack(spacing: 0) {
-                    ForEach(["低", "中", "高", "极高"], id: \.self) { level in
-                        Button {
-                            if let provider = app.providers.first(where: { $0.id == app.selectedProviderId }) {
-                                app.switchModel(providerId: provider.id, modelId: app.selectedModelId, thought: level)
-                            }
-                            onDismiss()
-                        } label: {
-                            HStack {
-                                Text(level)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(ZTheme.ink)
-                                Spacer()
-                                if level == app.selectedThought {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(ZTheme.accent)
-                                }
-                            }
-                            .padding(.horizontal, 14)
-                            .frame(minHeight: 40)
-                            .contentShape(Rectangle())
+            if thoughtLevels.isEmpty {
+                EmptyView()
+            } else {
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { thoughtExpanded.toggle() }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("思考等级")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundStyle(ZTheme.ink)
+                            Text(ModelLevel.zhLabel(for: app.selectedThought))
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(ZTheme.inkSoft)
                         }
-                        .buttonStyle(.plain)
+                        Spacer()
+                        Image(systemName: thoughtExpanded ? "chevron.up" : "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(ZTheme.inkFaint)
                     }
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 52)
+                    .contentShape(Rectangle())
                 }
-                .padding(.bottom, 6)
+                .buttonStyle(.plain)
+
+                if thoughtExpanded {
+                    VStack(spacing: 0) {
+                        ForEach(thoughtLevels, id: \.value) { level in
+                            Button {
+                                app.switchModel(providerId: app.selectedProviderId, modelId: app.selectedModelId, thought: level.value)
+                                onDismiss()
+                            } label: {
+                                HStack {
+                                    Text(level.zh)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(ZTheme.ink)
+                                    Spacer()
+                                    if level.value == app.selectedThought {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(ZTheme.accent)
+                                    }
+                                }
+                                .padding(.horizontal, 14)
+                                .frame(minHeight: 40)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.bottom, 6)
+                }
             }
         }
         .background(ZTheme.canvas, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -657,7 +704,14 @@ struct ModelPopover: View {
             p.models.contains { $0.id == app.selectedModelId || $0.name == app.selectedModelId }
         }
         let picked = containing.first { $0.id.lowercased().contains("zai") } ?? containing.first
-        if let picked { app.selectedProviderId = picked.id }
+        if let picked {
+            app.selectedProviderId = picked.id
+            if let model = picked.models.first(where: { $0.id == app.selectedModelId }),
+               !model.levels.isEmpty,
+               !model.levels.contains(where: { $0.value == app.selectedThought }) {
+                app.selectedThought = model.levels.last!.value
+            }
+        }
     }
 
     private func row(primary: String, selected: Bool, action: @escaping () -> Void) -> some View {

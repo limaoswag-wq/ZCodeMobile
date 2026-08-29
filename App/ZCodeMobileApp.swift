@@ -20,6 +20,8 @@ struct ZCodeMobileApp: App {
                     case .active:
                         UIApplication.shared.applicationIconBadgeNumber = 0
                         SilentAudio.shared.stop()
+                        // 被踢/断开后回前台自动夺回连接。
+                        app.reconnectIfNeeded()
                     case .background:
                         // 原生连接前后台是同一条，不需要交接；保活只为 iOS 不杀进程。
                         if app.settings.keepAlive {

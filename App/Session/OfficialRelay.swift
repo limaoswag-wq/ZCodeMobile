@@ -116,6 +116,13 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     private var openingBridge = false
     private var intentionallyClosed = false
     private var ackedSeqs: Set<Int> = []
+    /// 当前打开会话的实时行存储（rowId → row），由订阅增量维护。
+    private var liveRows: [Int: [String: Any]] = [:]
+    private var liveSessionId: String?
+    private var subscribedSessionIds: Set<String> = []
+    private var subscribedWorkspace = false
+    /// 新建会话时写进 config 的模型选择（provider/model + 思考 variants 原值），由 AppState 维护。
+    var sessionDefaults: (provider: String, model: String, thought: String) = ("", "", "")
 
     override init() {
         if let stored = UserDefaults.standard.string(forKey: "officialClientId") {
@@ -128,6 +135,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
         channels.reset { [weak self] data in
             self?.sendRawMessage(data)
+        }
+        channels.onEvent = { [weak self] value in
+            self?.handleEvent(value)
         }
     }
 
@@ -208,9 +218,63 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    /// 新对话：用 firstInput 直接建会话。
+    /// 新对话：先 createSession（sessionId 显式 null + config），拿到 id 后再发首条。
     func startNewChat(firstInput: String) {
-        Task { await createSessionWithFirstInput(firstInput) }
+        Task { await createSessionThenSend(firstInput) }
+    }
+
+    private func createSessionThenSend(_ text: String) async {
+        do {
+            if !helloReady { try await prepareConversation() }
+            // createSession 的 payload 是 strict 校验：workspaceId + config，绝不能带别的键。
+            var payload: [String: Any] = [:]
+            if let workspace = selectedWorkspace() {
+                payload["workspaceId"] = workspace.key
+            }
+            let d = sessionDefaults
+            if !d.provider.isEmpty, !d.model.isEmpty {
+                payload["config"] = [
+                    "mode": "yolo",
+                    "provider": d.provider,
+                    "model": d.model,
+                    "thought": d.thought,
+                    "followupMode": "queue"
+                ]
+            }
+            var args = workspaceArgs()
+            args["envelope"] = [
+                "commandId": UUID().uuidString.lowercased(),
+                "clientId": clientId,
+                "sessionId": NSNull(),
+                "type": "createSession",
+                "payload": payload,
+                "issuedAt": nowMs()
+            ]
+            let result = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
+            writeDebug("createSession", ["raw": result.jsonObject ?? NSNull()])
+            var newId: String?
+            if let nested = result.dictionary?["result"] as? [String: Any],
+               let sessionId = nested["sessionId"] as? String {
+                newId = sessionId
+            }
+            guard let newId else {
+                let status = result.dictionary?["status"] as? String ?? "?"
+                let reason = result.dictionary?["reasonCode"] as? String ?? "-"
+                DispatchQueue.main.async { self.onSendResult?(false, "新建失败 status=\(status) reason=\(reason)") }
+                return
+            }
+            DispatchQueue.main.async {
+                self.activeTaskId = newId
+                self.liveRows.removeAll()
+                self.liveSessionId = newId
+                self.subscribeConversation(sessionId: newId)
+                self.onSnapshot?()
+            }
+            // 新会话建好后，首条消息对它 sendText。
+            await sendTextAsync(text, taskId: newId)
+        } catch {
+            DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
+        }
     }
 
     /// 切模型 / 思考等级：一条 switchModelConfig 会话命令。
@@ -438,8 +502,13 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         ackedSeqs.removeAll()
         assembler.reset()
         helloReady = false
+        subscribedWorkspace = false
+        subscribedSessionIds.removeAll()
         channels.reset { [weak self] data in
             self?.sendRawMessage(data)
+        }
+        channels.onEvent = { [weak self] value in
+            self?.handleEvent(value)
         }
         if let workspaceKey = bridge["workspaceKey"] as? String {
             activeWorkspaceKey = workspaceKey
@@ -496,8 +565,46 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             "capabilities": ["workspaceHookReviewUi": true]
         ]])
         helloReady = true
+        await subscribeWorkspaceFeeds()
         if let taskId = activeTaskId {
-            await loadMessages(for: taskId)
+            subscribeConversation(sessionId: taskId)
+            await loadMessagesAsync(for: taskId)
+        }
+    }
+
+    /// 全局实时源：任务索引 + 任务状态（通知也靠它，不再轮询）。
+    private func subscribeWorkspaceFeeds() async {
+        guard !subscribedWorkspace, let workspace = selectedWorkspace(),
+              let path = workspace.path
+        else { return }
+        do {
+            _ = try await channels.call(channel: "zcode-agent", method: "subscribeSessionsIndexV4", args: [[
+                "workspacePath": path,
+                "runtimePolicy": "existing-only"
+            ]])
+            _ = try await channels.call(channel: "window-controller", method: "subscribeControllerV4", args: [[
+                "topic": "controller/tasks-index",
+                "visibility": "foreground"
+            ]])
+            subscribedWorkspace = true
+        } catch {
+            writeDebug("subscribe-workspace-error", ["error": error.localizedDescription])
+        }
+    }
+
+    /// 每个打开的会话订阅一次，之后行增量实时推过来。
+    private func subscribeConversation(sessionId: String) {
+        guard !subscribedSessionIds.contains(sessionId) else { return }
+        subscribedSessionIds.insert(sessionId)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                var args = self.workspaceArgs()
+                args["sessionId"] = sessionId
+                _ = try await self.channels.call(channel: "zcode-agent", method: "subscribeConversationV4", args: [args])
+            } catch {
+                self.writeDebug("subscribe-error", ["sessionId": sessionId, "error": error.localizedDescription])
+            }
         }
     }
 
@@ -529,9 +636,20 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             args["sessionId"] = taskId
             args["limit"] = 120
             let result = try await channels.call(channel: "zcode-agent", method: "conversationRowsRangeV4", args: [args])
-            let messages = Self.parseMessages(result.jsonObject)
-            captureFileChangesContext(result.jsonObject)
-            writeDebug("rowsRange", ["taskId": taskId, "raw": result.jsonObject ?? NSNull()])
+            let raw = result.jsonObject as? [String: Any]
+            let rows = (raw?["rows"] as? [[String: Any]])
+                ?? ((raw?["rows"] as? [String: Any])?["window"] as? [[String: Any]])
+                ?? []
+            // 订阅先挂上，再种基线行；之后的增量走事件。
+            liveSessionId = taskId
+            liveRows = Dictionary(uniqueKeysWithValues: rows.compactMap { row in
+                let rid = RpcFrame.intValue(row["rowId"])
+                return rid > 0 ? (rid, row) : nil
+            })
+            subscribeConversation(sessionId: taskId)
+            captureFileChangesContext(raw)
+            let messages = Self.parseMessages(rows)
+            writeDebug("rowsRange", ["taskId": taskId, "count": rows.count])
             DispatchQueue.main.async { self.onMessages?(taskId, messages) }
         } catch {
             writeDebug("rowsRange-error", ["taskId": taskId, "error": error.localizedDescription])
@@ -581,6 +699,11 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    /// 行的 input 对象里取终端命令。
+    private static func command(from input: [String: Any]?) -> String? {
+        input?["command"] as? String
+    }
+
     static func parseFileChanges(_ raw: Any?) -> [FileChangeInfo] {
         // 响应结构未知，做多位置防御解析；原始返回已落调试文件。
         var candidates: [[String: Any]] = []
@@ -604,7 +727,15 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                 ?? (item["change"] as? String)
                 ?? (item["type"] as? String)
                 ?? "M"
-            return FileChangeInfo(path: path, status: status, additions: additions, deletions: deletions)
+            // diff 内容字段名未最终核实，多候选解析；原始返回已落调试文件。
+            var content: String?
+            for key in ["patch", "diff", "content", "text"] {
+                if let s = item[key] as? String, !s.isEmpty { content = s; break }
+            }
+            if content == nil, let hunks = item["hunks"] as? [[String: Any]] {
+                content = hunks.compactMap { $0["content"] as? String ?? $0["lines"] as? String }.joined(separator: "\n")
+            }
+            return FileChangeInfo(path: path, status: status, additions: additions, deletions: deletions, content: content)
         }
     }
 
@@ -637,47 +768,6 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                 } else {
                     let reason = result.dictionary?["reasonCode"] as? String ?? "发送失败"
                     self.onSendResult?(false, reason)
-                }
-            }
-        } catch {
-            DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
-        }
-    }
-
-    private func createSessionWithFirstInput(_ text: String) async {
-        do {
-            if !helloReady { try await prepareConversation() }
-            // createSession 的 payload 是 strict 校验：只发它认识的字段。
-            var payload: [String: Any] = [:]
-            if let workspace = selectedWorkspace() {
-                payload["workspaceId"] = workspace.key
-            }
-            payload["firstInput"] = ["text": text]
-            var args = workspaceArgs()
-            args["envelope"] = [
-                "commandId": UUID().uuidString.lowercased(),
-                "clientId": clientId,
-                "type": "createSession",
-                "payload": payload,
-                "issuedAt": nowMs()
-            ]
-            let result = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
-            var newId: String?
-            if let nested = result.dictionary?["result"] as? [String: Any],
-               let sessionId = nested["sessionId"] as? String {
-                newId = sessionId
-            }
-            writeDebug("createSession", ["raw": result.jsonObject ?? NSNull()])
-            DispatchQueue.main.async {
-                if let newId {
-                    self.activeTaskId = newId
-                    self.onSendResult?(true, nil)
-                    self.onSnapshot?()
-                    self.loadMessages(for: newId)
-                } else {
-                    let status = result.dictionary?["status"] as? String ?? "?"
-                    let reason = result.dictionary?["reasonCode"] as? String ?? "-"
-                    self.onSendResult?(false, "新建失败 status=\(status) reason=\(reason)")
                 }
             }
         } catch {
@@ -738,6 +828,105 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             "zcode_type": "workspace-list-request",
             "requestId": "workspaces-\(requestCounter)"
         ])
+    }
+
+    // MARK: - 实时事件路由
+
+    private func handleEvent(_ value: IPCValue) {
+        guard let dict = value.dictionary else { return }
+        let topic = dict["topic"] as? String ?? ""
+        let frame = dict["frame"] as? [String: Any]
+        let payload = (frame?["payload"] as? [String: Any]) ?? (dict["payload"] as? [String: Any])
+        guard let deltas = payload?["deltas"] as? [[String: Any]] else { return }
+        if topic.hasPrefix("conversation/") {
+            let sid = String(topic.dropFirst("conversation/".count))
+            guard sid == liveSessionId else { return }
+            applyConversationDeltas(deltas)
+        } else if topic == "controller/tasks-index" {
+            applyTaskDeltas(deltas)
+        }
+    }
+
+    private func applyConversationDeltas(_ deltas: [[String: Any]]) {
+        for d in deltas {
+            let op = d["op"] as? String ?? ""
+            switch op {
+            case "row.upserted", "row.appended":
+                if let row = d["row"] as? [String: Any] {
+                    liveRows[RpcFrame.intValue(row["rowId"])] = row
+                }
+            case "row.removed":
+                if let from = d["fromRowId"] {
+                    let f = RpcFrame.intValue(from)
+                    liveRows = liveRows.filter { $0.key < f }
+                }
+            case "row.delta":
+                let rowId = RpcFrame.intValue(d["rowId"])
+                guard var row = liveRows[rowId], let append = d["append"] as? String else { continue }
+                let path = d["path"] as? String ?? "text"
+                switch path {
+                case "text":
+                    row["text"] = ((row["text"] as? String) ?? "") + append
+                case "inputText":
+                    row["inputText"] = ((row["inputText"] as? String) ?? "") + append
+                default:
+                    break
+                }
+                liveRows[rowId] = row
+            default:
+                break
+            }
+        }
+        rebuildLiveMessages()
+    }
+
+    private func rebuildLiveMessages() {
+        guard let sid = liveSessionId else { return }
+        let rows = liveRows.keys.sorted().compactMap { liveRows[$0] }
+        let messages = Self.parseMessages(rows)
+        onMessages?(sid, messages)
+    }
+
+    /// 任务实时状态：跑增量更新任务列表（通知靠这里，不再轮询）。
+    private func applyTaskDeltas(_ deltas: [[String: Any]]) {
+        var updated = tasks
+        var changed = false
+        for d in deltas {
+            guard (d["op"] as? String) == "task.upserted",
+                  let task = d["task"] as? [String: Any],
+                  let meta = task["meta"] as? [String: Any],
+                  let id = meta["taskId"] as? String
+            else { continue }
+            let membership = task["membership"] as? [String: Any] ?? [:]
+            let status = (task["liveStatus"] as? String) ?? (meta["status"] as? String) ?? "idle"
+            var summary = TaskSummary(
+                id: id,
+                title: meta["title"] as? String ?? "未命名任务",
+                status: status,
+                mode: meta["mode"] as? String,
+                model: meta["model"] as? String,
+                workspacePath: meta["workspacePath"] as? String,
+                pinned: (membership["pinned"] as? Bool) ?? false,
+                updatedAt: RpcFrame.intValue(meta["updatedAt"]),
+                createdAt: RpcFrame.intValue(meta["createdAt"]),
+                modelId: nil,
+                thoughtLevel: meta["thoughtLevel"] as? String
+            )
+            if let full = meta["model"] as? String, let slash = full.lastIndex(of: "/") {
+                summary.modelId = String(full[full.index(after: slash)...])
+            }
+            if let idx = updated.firstIndex(where: { $0.id == id }) {
+                updated[idx] = summary
+            } else {
+                updated.insert(summary, at: 0)
+            }
+            changed = true
+        }
+        if changed {
+            updated.sort { $0.updatedAt > $1.updatedAt }
+            tasks = updated
+            onSnapshot?()
+        }
     }
 
     private func sendJSON(_ object: [String: Any]) {
@@ -856,7 +1045,9 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
         var messages: [ChatMessage] = []
         for row in rows {
+            if let vis = row["visibility"] as? String, vis != "visible" { continue }
             let kind = row["kind"] as? String ?? ""
+            let input = row["input"] as? [String: Any]
             let text = (row["text"] as? String)
                 ?? (row["thinking"] as? String)
                 ?? (row["content"] as? String)
@@ -886,15 +1077,18 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             } else if kind == "toolCall" {
                 guard !trimmed.isEmpty else { continue }
                 let toolName = (row["toolName"] as? String) ?? (row["name"] as? String) ?? ""
-                var filePath: String?
-                var content: String?
-                if let data = trimmed.data(using: .utf8),
+                var filePath = input?["file_path"] as? String
+                var content = input?["content"] as? String
+                if let ns = input?["new_string"] as? String { content = (content ?? "") + ns }
+                if filePath == nil, let data = trimmed.data(using: .utf8),
                    let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
                     filePath = obj["file_path"] as? String
-                    if let c = obj["content"] as? String { content = c }
-                    if let c = obj["new_string"] as? String { content = (content ?? "") + c }
+                    if content == nil {
+                        if let c = obj["content"] as? String { content = c }
+                        if let c = obj["new_string"] as? String { content = (content ?? "") + c }
+                    }
                 }
-                var detail = content ?? trimmed
+                var detail = content ?? (input?["command"] as? String) ?? trimmed
                 if detail.count > 6000 {
                     detail = String(detail.prefix(6000)) + "\n…"
                 }
@@ -915,6 +1109,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     }
 
     static func parseProviders(_ raw: Any?) -> [ModelProviderInfo] {
+        // 响应第一层就是供应商数组（getAllCached）。
         let array: [Any]
         if let value = raw as? [Any] {
             array = value
@@ -923,13 +1118,36 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         } else {
             array = []
         }
+        let rank = ["low": 0, "medium": 1, "high": 2, "xhigh": 3, "max": 4, "enabled": 0, "off": 1]
         return array.compactMap { item -> ModelProviderInfo? in
             guard let dict = item as? [String: Any], let id = dict["id"] as? String else { return nil }
-            let models = ((dict["models"] as? [[String: Any]]) ?? []).compactMap { model -> ModelProviderInfo.ModelInfo? in
-                guard let modelId = model["id"] as? String else { return nil }
-                return ModelProviderInfo.ModelInfo(id: modelId, name: (model["name"] as? String) ?? modelId)
+            let enabled = dict["enabled"] as? Bool
+            let reason = dict["systemDisabledReason"] as? String
+            let apiKey = (dict["apiKey"] as? String) ?? ""
+            let visible: Bool
+            if let enabled { visible = enabled } else { visible = (reason == nil && !apiKey.isEmpty) }
+            guard visible else { return nil }
+            let modelsRaw = (dict["models"] as? [[String: Any]]) ?? []
+            let models = modelsRaw.compactMap { m -> ModelProviderInfo.ModelInfo? in
+                guard let mid = m["id"] as? String else { return nil }
+                var levels: [ModelLevel] = []
+                if let reasoning = m["reasoning"] as? [String: Any] {
+                    var values: [String] = []
+                    if let arr = reasoning["levels"] as? [[String: Any]] {
+                        values = arr.compactMap { $0["value"] as? String }
+                    } else if let dictLevels = reasoning["levels"] as? [String: Any] {
+                        values = dictLevels.keys.sorted { (rank[$0] ?? 99) < (rank[$1] ?? 99) }
+                    } else if let variants = reasoning["variants"] as? [String] {
+                        values = variants
+                    }
+                    levels = values.map { ModelLevel(value: $0, zh: ModelLevel.zhLabel(for: $0)) }
+                }
+                let vision = ((m["modalities"] as? [String: Any])?["input"] as? [String])?.contains("image") ?? false
+                let label = (m["name"] as? String) ?? (m["label"] as? String) ?? mid
+                return ModelProviderInfo.ModelInfo(id: mid, name: label, levels: levels, vision: vision)
             }
-            return ModelProviderInfo(id: id, name: (dict["name"] as? String) ?? id, models: models)
+            let name = (dict["name"] as? String) ?? id
+            return ModelProviderInfo(id: id, name: name, models: models)
         }
     }
 }

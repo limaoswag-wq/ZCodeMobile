@@ -10,6 +10,8 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     var onNewChat: (() -> Void)?
     var onOpenAttach: (() -> Void)?
     var onOpenTasks: (() -> Void)?
+    var onReviewFile: ((FileChangeInfo) -> Void)?
+    var onOpenFile: ((FileChangeInfo) -> Void)?
 
     private let table = UITableView(frame: .zero, style: .plain)
     private let composer = ComposerView()
@@ -28,6 +30,7 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
         case work(id: String, items: [WorkItem], startMs: Int, endMs: Int, running: Bool)
         case text(id: String, markdown: String)
         case web(id: String, code: String, language: String)
+        case files([FileChangeInfo])
     }
 
     override func viewDidLoad() {
@@ -54,6 +57,7 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
         table.register(WorkCell.self, forCellReuseIdentifier: WorkCell.id)
         table.register(BodyCell.self, forCellReuseIdentifier: BodyCell.id)
         table.register(WebCell.self, forCellReuseIdentifier: WebCell.id)
+        table.register(FileCardCell.self, forCellReuseIdentifier: FileCardCell.id)
 
         composer.translatesAutoresizingMaskIntoConstraints = false
         composer.delegate = self
@@ -107,16 +111,18 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     func reloadFromApp() {
         let entries = app.currentTaskEntries
         rows = Self.buildRows(from: entries)
-        let signature = rows.map(\.rowId).joined(separator: "|") + "#\(app.messages.count)"
+        if app.activeTaskId != nil, !app.fileChanges.isEmpty {
+            rows.append(.files(app.fileChanges))
+        }
+        let signature = rows.map(\.rowId).joined(separator: "|") + "#\(app.messages.count)#\(app.fileChanges.count)"
         let changed = signature != lastSignature
         lastSignature = signature
 
         header.configure(
             mode: app.activeTaskId == nil ? .home : .chat,
             title: app.activeTask?.title ?? "",
-            provider: app.selectedProviderId,
-            model: app.selectedModelId,
-            thought: app.selectedThought,
+            model: app.pillModelName,
+            thought: app.pillThoughtZh,
             connected: app.connection.isConnected
         )
         let showEmpty = app.activeTaskId == nil || rows.isEmpty
@@ -149,7 +155,8 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                 let segments = MarkdownRenderer.segments(from: markdown)
                 var textChunks: [String] = []
                 func flush(_ index: Int) {
-                    let joined = textChunks.joined(separator: " ")
+                    // 段落之间必须保留换行，否则标题/表格失效压成一坨。
+                    let joined = textChunks.joined(separator: "\n\n")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     if !joined.isEmpty {
                         rows.append(.text(id: "\(id)-t\(index)", markdown: joined))
@@ -184,8 +191,7 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                         textChunks.append(segment.text)
                     }
                 }
-                flush(segments.count)
-            }
+                flush(segments.count)            }
         }
         return rows
     }
@@ -241,6 +247,13 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
         case .text(let id, let markdown):
             let cell = tableView.dequeueReusableCell(withIdentifier: BodyCell.id, for: indexPath) as! BodyCell
             cell.configure(markdown: markdown, trait: traitCollection)
+            return cell
+        case .files(let files):
+            let cell = tableView.dequeueReusableCell(withIdentifier: FileCardCell.id, for: indexPath) as! FileCardCell
+            cell.configure(files: files, trait: traitCollection,
+                           onReview: { [weak self] in self?.onReviewFile?($0) },
+                           onOpen: { [weak self] in self?.onOpenFile?($0) },
+                           onUndo: { [weak self] in self?.app.showToast("已请求桌面端撤销本次更改") })
             return cell
         case .web(let id, let code, let language):
             let cell = tableView.dequeueReusableCell(withIdentifier: WebCell.id, for: indexPath) as! WebCell
@@ -406,7 +419,7 @@ final class ChatHeader: UIView {
         titleLabel.textColor = ZUIColor.ink(trait)
     }
 
-    func configure(mode: Mode, title: String, provider: String, model: String, thought: String, connected: Bool) {
+    func configure(mode: Mode, title: String, model: String, thought: String, connected: Bool) {
         let isHome = mode == .home
         menuButton.isHidden = !isHome
         backButton.isHidden = isHome
@@ -888,5 +901,192 @@ final class BodyCell: UITableViewCell {
 
     func configure(markdown: String, trait: UITraitCollection) {
         label.attributedText = MarkdownRenderer.attributed(from: markdown, trait: trait, user: false)
+    }
+}
+
+// MARK: - 文件更改卡片（审查/打开走侧边栏）
+
+final class FileCardCell: UITableViewCell {
+    static let id = "files"
+    private let card = UIView()
+    private let header = UILabel()
+    private let rowsStack = UIStackView()
+    private var onReview: ((FileChangeInfo) -> Void)?
+    private var onOpen: ((FileChangeInfo) -> Void)?
+    private var buttonFiles: [UIButton: FileChangeInfo] = [:]
+    private var buttonModes: [UIButton: String] = [:]
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .none
+        backgroundColor = .clear
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.layer.cornerRadius = 14
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.font = .systemFont(ofSize: 13)
+        rowsStack.translatesAutoresizingMaskIntoConstraints = false
+        rowsStack.axis = .vertical
+        contentView.addSubview(card)
+        card.addSubview(header)
+        card.addSubview(rowsStack)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+            header.topAnchor.constraint(equalTo: card.topAnchor, constant: 11),
+            header.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            header.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -12),
+            rowsStack.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 2),
+            rowsStack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            rowsStack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            rowsStack.bottomAnchor.constraint(equalTo: card.bottomAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyChrome()
+    }
+
+    private func applyChrome() {
+        let t = traitCollection
+        card.backgroundColor = ZUIColor.surface(t)
+        card.layer.borderColor = ZUIColor.line(t).cgColor
+        header.textColor = ZUIColor.ink(t)
+    }
+
+    func configure(files: [FileChangeInfo], trait: UITraitCollection,
+                   onReview: @escaping (FileChangeInfo) -> Void,
+                   onOpen: @escaping (FileChangeInfo) -> Void,
+                   onUndo: @escaping () -> Void) {
+        self.onReview = onReview
+        self.onOpen = onOpen
+        buttonFiles.removeAll()
+        buttonModes.removeAll()
+        applyChrome()
+        let adds = files.reduce(0) { $0 + $1.additions }
+        let dels = files.reduce(0) { $0 + $1.deletions }
+        let text = NSMutableAttributedString(string: "  \(files.count) 个文件已更改  ", attributes: [
+            .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
+            .foregroundColor: ZUIColor.ink(trait)
+        ])
+        text.append(NSAttributedString(string: "+\(adds)", attributes: [
+            .font: UIFont.systemFont(ofSize: 12.5, weight: .semibold),
+            .foregroundColor: ZUIColor.ok
+        ]))
+        text.append(NSAttributedString(string: "  -\(dels)", attributes: [
+            .font: UIFont.systemFont(ofSize: 12.5, weight: .semibold),
+            .foregroundColor: ZUIColor.danger
+        ]))
+        header.attributedText = text
+
+        rowsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for file in files.prefix(12) {
+            let row = UIStackView()
+            row.axis = .horizontal
+            row.alignment = .center
+            row.spacing = 8
+            row.isLayoutMarginsRelativeArrangement = true
+            row.layoutMargins = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+            row.layer.cornerRadius = 0
+
+            let sep = UIView()
+            sep.backgroundColor = ZUIColor.line(trait)
+            sep.translatesAutoresizingMaskIntoConstraints = false
+            sep.heightAnchor.constraint(equalToConstant: 0.7).isActive = true
+            rowsStack.addArrangedSubview(sep)
+
+            let icon = UILabel()
+            icon.text = "📝"
+            icon.font = .systemFont(ofSize: 12)
+            row.addArrangedSubview(icon)
+
+            let name = UILabel()
+            let base = file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last.map(String.init) ?? file.path
+            name.text = base
+            name.font = .systemFont(ofSize: 12.5, weight: .semibold)
+            name.textColor = ZUIColor.ink(trait)
+            name.setContentCompressionResistancePriority(.required, for: .horizontal)
+            row.addArrangedSubview(name)
+
+            let dir = UILabel()
+            let dirPath = (file.path as NSString)
+            let dirShort = dirPath.length > base.count
+                ? String(dirPath.substring(to: dirPath.length - base.count - 1))
+                : ""
+            dir.text = dirShort
+            dir.font = .systemFont(ofSize: 10.5)
+            dir.textColor = ZUIColor.inkFaint(trait)
+            dir.lineBreakMode = .byTruncatingMiddle
+            dir.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            row.addArrangedSubview(dir)
+
+            if file.additions > 0 {
+                let add = UILabel()
+                add.text = "+\(file.additions)"
+                add.font = .systemFont(ofSize: 11.5, weight: .semibold)
+                add.textColor = ZUIColor.ok
+                row.addArrangedSubview(add)
+            }
+            if file.deletions > 0 {
+                let del = UILabel()
+                del.text = "-\(file.deletions)"
+                del.font = .systemFont(ofSize: 11.5, weight: .semibold)
+                del.textColor = ZUIColor.danger
+                row.addArrangedSubview(del)
+            }
+
+            func actionButton(_ title: String, mode: String) -> UIButton {
+                let b = UIButton(type: .system)
+                b.setTitle(title, for: .normal)
+                b.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+                b.setTitleColor(ZUIColor.ink(trait), for: .normal)
+                b.layer.borderWidth = 1
+                b.layer.borderColor = ZUIColor.line(trait).cgColor
+                b.layer.cornerRadius = 9
+                b.contentEdgeInsets = UIEdgeInsets(top: 4, left: 11, bottom: 4, right: 11)
+                row.addArrangedSubview(b)
+                return b
+            }
+            let review = actionButton("审查", mode: "diff")
+            review.addTarget(self, action: #selector(tapReview(_:)), for: .touchUpInside)
+            let open = actionButton("打开", mode: "file")
+            open.addTarget(self, action: #selector(tapOpen(_:)), for: .touchUpInside)
+            buttonFiles[review] = file
+            buttonModes[review] = "diff"
+            buttonFiles[open] = file
+            buttonModes[open] = "file"
+        }
+
+        let undoRow = UIView()
+        undoRow.translatesAutoresizingMaskIntoConstraints = false
+        undoRow.backgroundColor = .clear
+        let undo = UIButton(type: .system)
+        undo.translatesAutoresizingMaskIntoConstraints = false
+        undo.setTitle("⟲ 撤销", for: .normal)
+        undo.titleLabel?.font = .systemFont(ofSize: 12.5)
+        undo.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
+        undo.addTarget(self, action: #selector(tapUndo), for: .touchUpInside)
+        undoRow.addSubview(undo)
+        NSLayoutConstraint.activate([
+            undo.topAnchor.constraint(equalTo: undoRow.topAnchor, constant: 6),
+            undo.bottomAnchor.constraint(equalTo: undoRow.bottomAnchor, constant: -6),
+            undo.trailingAnchor.constraint(equalTo: undoRow.trailingAnchor, constant: -12),
+            undoRow.heightAnchor.constraint(equalToConstant: 32)
+        ])
+        rowsStack.addArrangedSubview(undoRow)
+    }
+
+    @objc private func tapReview(_ sender: UIButton) {
+        if let file = buttonFiles[sender] { onReview?(file) }
+    }
+
+    @objc private func tapOpen(_ sender: UIButton) {
+        if let file = buttonFiles[sender] { onOpen?(file) }
     }
 }

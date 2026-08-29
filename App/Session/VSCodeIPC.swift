@@ -213,6 +213,8 @@ final class ChannelClient {
     private var initialized = false
     private var waiters: [Int: CheckedContinuation<Void, Error>] = [:]
     private var nextWaiter = 0
+    /// 桌面端 EventFire（204）推送：订阅会话的实时帧从这里出来。
+    var onEvent: ((IPCValue) -> Void)?
 
     init(sendRaw: @escaping (Data) -> Void) {
         self.sendRaw = sendRaw
@@ -238,6 +240,10 @@ final class ChannelClient {
             return
         }
         guard items.count > 1, case .int(let id) = items[1] else { return }
+        if type == VSCodeIPC.eventFire {
+            onEvent?(payload)
+            return
+        }
         guard let continuation = pending.removeValue(forKey: id) else { return }
         switch type {
         case VSCodeIPC.promiseSuccess:

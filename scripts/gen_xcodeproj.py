@@ -30,6 +30,7 @@ app_files = [
     ("RpcFrame.swift", "App/Session/RpcFrame.swift"),
     ("NotificationCenter.swift", "App/Session/NotificationCenter.swift"),
     ("RootView.swift", "App/UI/RootView.swift"),
+    ("ReviewPanel.swift", "App/UI/ReviewPanel.swift"),
     ("MarkdownRenderer.swift", "App/Chat/MarkdownRenderer.swift"),
     ("ComposerView.swift", "App/Chat/ComposerView.swift"),
     ("InsertWebView.swift", "App/Chat/InsertWebView.swift"),

@@ -16,7 +16,16 @@ final class AppState: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var providers: [ModelProviderInfo] = []
     @Published private(set) var fileChanges: [FileChangeInfo] = []
+    /// 侧边栏打开的页签（审查/打开），照官方「打开标签页」结构。
+    @Published var panelTabs: [PanelTab] = []
+    @Published var activePanelTabId: String?
     @Published var toast: String?
+
+    struct PanelTab: Identifiable, Hashable {
+        var id: String { file.path + "#" + mode }
+        let file: FileChangeInfo
+        let mode: String   // "diff" | "file"
+    }
 
     /// 当前选中的模型 / 思考等级（本机偏好，切换时下发 switchModelConfig）。
     @Published var selectedProviderId: String {
@@ -38,15 +47,43 @@ final class AppState: ObservableObject {
     var isTaskRunning: Bool { activeTask?.isRunning ?? false }
     var currentTaskEntries: [ChatEntry] { EntryBuilder.build(messages: messages) }
 
+    /// 模型胶囊显示：优先任务实时 meta，其次本机选择。
+    var pillModelName: String {
+        if let mid = activeTask?.modelId, !mid.isEmpty { return mid }
+        return selectedModelId
+    }
+
+    var pillThoughtZh: String {
+        if let level = activeTask?.thoughtLevel, !level.isEmpty {
+            return ModelLevel.zhLabel(for: level)
+        }
+        return ModelLevel.zhLabel(for: selectedThought)
+    }
+
+    func openPanel(file: FileChangeInfo, mode: String) {
+        let tab = PanelTab(file: file, mode: mode)
+        if !panelTabs.contains(tab) { panelTabs.append(tab) }
+        activePanelTabId = tab.id
+    }
+
+    func closePanelTab(_ id: String) {
+        panelTabs.removeAll { $0.id == id }
+        if activePanelTabId == id { activePanelTabId = panelTabs.last?.id }
+    }
+
+    var activePanelTab: PanelTab? {
+        panelTabs.first { $0.id == activePanelTabId } ?? panelTabs.last
+    }
+
     var deviceName: String {
         if let link = relay.link, let name = link.deviceName, !name.isEmpty { return name }
         return relay.deviceName ?? "ZCode"
     }
 
     private init() {
-        selectedProviderId = UserDefaults.standard.string(forKey: "selProvider") ?? "zai"
-        selectedModelId = UserDefaults.standard.string(forKey: "selModel") ?? "GLM-5.3-Flash"
-        selectedThought = UserDefaults.standard.string(forKey: "selThought") ?? "高"
+        selectedProviderId = UserDefaults.standard.string(forKey: "selProvider") ?? ""
+        selectedModelId = UserDefaults.standard.string(forKey: "selModel") ?? ""
+        selectedThought = UserDefaults.standard.string(forKey: "selThought") ?? "high"
 
         settings.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -100,6 +137,19 @@ final class AppState: ObservableObject {
         guard relay.state == .idle else { return }
         guard let link = OfficialLinkParser.parse(settings.officialURL) else { return }
         relay.connect(link)
+    }
+
+    /// 被踢/断开后回前台自动夺回连接。
+    func reconnectIfNeeded() {
+        guard hasLink else { return }
+        switch relay.state {
+        case .idle, .failed:
+            if let link = OfficialLinkParser.parse(settings.officialURL) {
+                relay.connect(link)
+            }
+        default:
+            break
+        }
     }
 
     func connect(from raw: String) {
@@ -163,6 +213,8 @@ final class AppState: ObservableObject {
         selectedProviderId = providerId
         selectedModelId = modelId
         selectedThought = thought
+        // 新建会话的 config 也用这套原值。
+        relay.sessionDefaults = (providerId, modelId, thought)
         relay.switchModel(providerId: providerId, modelId: modelId, thought: thought)
     }
 

@@ -18,6 +18,8 @@ struct TaskSummary: Codable, Identifiable, Hashable {
     var pinned: Bool
     var updatedAt: Int
     var createdAt: Int
+    var modelId: String?
+    var thoughtLevel: String?
 
     var isRunning: Bool { status == "running" || status == "waiting" }
     var statusLabel: String {
@@ -28,6 +30,25 @@ struct TaskSummary: Codable, Identifiable, Hashable {
         case "error": return "出错"
         case "idle": return "空闲"
         default: return status
+        }
+    }
+}
+
+/// 思考档位：value 是发给桌面端的原值，zh 是界面中文。
+struct ModelLevel: Hashable {
+    var value: String
+    var zh: String
+
+    static func zhLabel(for value: String) -> String {
+        switch value {
+        case "low": return "低"
+        case "medium": return "中"
+        case "high": return "高"
+        case "xhigh": return "极高"
+        case "max": return "最高"
+        case "enabled": return "开"
+        case "off": return "关"
+        default: return value
         }
     }
 }
@@ -96,6 +117,7 @@ struct FileChangeInfo: Identifiable, Hashable {
     var status: String
     var additions: Int
     var deletions: Int
+    var content: String?
 }
 
 /// 聊天页的一条展示内容：用户气泡 / 已工作折叠块 / 正文。
@@ -154,6 +176,8 @@ struct ModelProviderInfo: Identifiable, Hashable {
     struct ModelInfo: Identifiable, Hashable {
         var id: String
         var name: String
+        var levels: [ModelLevel]
+        var vision: Bool
     }
 
     var id: String
