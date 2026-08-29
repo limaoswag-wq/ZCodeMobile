@@ -7,179 +7,184 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D153399DE01A49CBB62E7EE1 /* ZCodeMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9178EDEF862437EB6147D62 /* ZCodeMobileApp.swift */; };
-		BCAEAC073371459B884DA598 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6AFD667923845B5A10DE194 /* Models.swift */; };
-		8FEB075C35B5413A96069290 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB76EE02196E44AC92CE9AC3 /* AppSettings.swift */; };
-		7ADE49C5FEAF477CB99823DA /* OfficialLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43896571A3F4119BF3CC56E /* OfficialLink.swift */; };
-		ABF3F5A78FA24E86A114E5A7 /* OfficialRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE302CCE2ED461590AFCBD5 /* OfficialRelay.swift */; };
-		B95401B218A6450BA36909C3 /* VSCodeIPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49EE1D37B7244552A78601DB /* VSCodeIPC.swift */; };
-		5D2A3B72535143DABC0CFDC9 /* RpcFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DDA69DE4C24C18AB99ED92 /* RpcFrame.swift */; };
-		B04591E7C67C4AA3AD1EE29A /* MonitorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D524AA553F2848A3BFE989CF /* MonitorController.swift */; };
-		A32CED2FAF364030ABECF60B /* NotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B65379FCBD8E438D8E2CECA2 /* NotificationCenter.swift */; };
-		F7CA9DB3F37E4C4CA8246FB0 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD33D8C3D9D14A2398D4B5C6 /* RootView.swift */; };
-		08A422AB129048D19C4CEA05 /* RemoteWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDBC2873A8B4DE38919EE46 /* RemoteWebView.swift */; };
-		D84C0C01D143485FA34E3F4B /* QRScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0BB74CBF6A1477188697FD0 /* QRScannerViewController.swift */; };
-		E1477FA61B844F00BA36B42F /* SilentAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4A26A365EA4161A5847A11 /* SilentAudio.swift */; };
-		4DAAD9064BC146F4801BD75C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04A8DAF7FBC24725980ACC5C /* Assets.xcassets */; };
-		ED25BB74D4474522B2BF59A1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 197A58010C8045BFB24B5D75 /* PrivacyInfo.xcprivacy */; };
-		641B7456333E451483219D97 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2DB0BD966DA94950B3431FEE /* UIKit.framework */; };
-		769FE0F526D045CD8C5AE025 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 399EC45FBCCE40CABB7C6562 /* SwiftUI.framework */; };
-		7CCF0C090DB7497A97F014C5 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 490F1F3035CB46338F633FE5 /* UserNotifications.framework */; };
-		DE9001F0EA974DAA8E4EE8FA /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D7441C81B4914CF9AB33FCEC /* AVFoundation.framework */; };
-		31DA4B6361604E1FA922C5F5 /* Vision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58F4874250AF4F738384D2C8 /* Vision.framework */; };
-		E550F91C039B4DB48DD03F43 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCB0281D4724BFC9C108620 /* PhotosUI.framework */; };
-		E4C88423132A4B5F88500E19 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C81A26BB48F540339B77179F /* CryptoKit.framework */; };
-		BCC58B32ED9547ED987E129C /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C070070443C4497390F7549F /* WebKit.framework */; };
+		E1F6949BB6CE4C10B701EA91 /* ZCodeMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F2CD0B5C834D2C8908837D /* ZCodeMobileApp.swift */; };
+		C8C1DAD6320D44B6B8AC112C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 892E7BC99F814BC1B514B4F8 /* Theme.swift */; };
+		FBC70B70F62944F2849CB769 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2E9C57C55C4F1984F1816D /* Models.swift */; };
+		F6CE59EB48A44C7CAE7AD868 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D02D90611145768AC1A16A /* AppSettings.swift */; };
+		5C93393CD0C94C8AAD454C16 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AB3D4C09D145B491D40B53 /* AppState.swift */; };
+		A61BB3D8CF66437C9ACE0844 /* OfficialLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FFBD19D5524073AD8B24E5 /* OfficialLink.swift */; };
+		A2DC4AC866C1453F921BBBD2 /* OfficialRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA53A13249584E36B5CD063F /* OfficialRelay.swift */; };
+		868A95CA3FAF43D2BADCACD1 /* VSCodeIPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A86F75A5BE7495F91D9D0E3 /* VSCodeIPC.swift */; };
+		1FC096E908BC407A9DB2456E /* RpcFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CAF54C68359463E93F4C617 /* RpcFrame.swift */; };
+		B9BA6C7A91074D9DB91A98AE /* NotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED1C3825A947E989180664 /* NotificationCenter.swift */; };
+		8863723886684F6C946EEC16 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F411A494F48C4A4FAD3CF525 /* RootView.swift */; };
+		DA65066C55144FA5B279EB6C /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B137E761980D4F868A91B77C /* MarkdownRenderer.swift */; };
+		4684CB054BA641FDBA78A3C4 /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45C51D49081A42E382E8AD53 /* ComposerView.swift */; };
+		73EC151DA4924D3C8FE52DFB /* InsertWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2E07CE3DB648E7A78537C2 /* InsertWebView.swift */; };
+		D4D10C90BACD4CF498A74BED /* ChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D32024C811B40699F530DB2 /* ChatViewController.swift */; };
+		88A9AEC2FC93449CA3792882 /* QRScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A100DC664D4B6BA3D7545F /* QRScannerViewController.swift */; };
+		A2B28159560C4844B229AACD /* SilentAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A1FEC112164201BC3460DE /* SilentAudio.swift */; };
+		3ADB0F807A1449BF99B8DF7B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 089BBE7967A24C9A8B8CCF55 /* Assets.xcassets */; };
+		5A4812AF5500472ABB788F39 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F554F9C0C6014623A8E70A7D /* PrivacyInfo.xcprivacy */; };
+		DE3040F048384D748A6E77A4 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E56697EACD3F4FBF9808D4E8 /* UIKit.framework */; };
+		F8CD68F1C7C94ED186672156 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CDEA94319E3C4103BBDE12F7 /* SwiftUI.framework */; };
+		A25A386DDA444A6CBD5F23BE /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6758ECB400ED4779BB1ABBB0 /* UserNotifications.framework */; };
+		6DE5EF5E42564EC8B9CAA3EC /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93EC1BDFA1944CDFBE67C9B0 /* AVFoundation.framework */; };
+		C72DE99F4E2340978111D5EE /* Vision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AE1D6AB9DA04815BCB82957 /* Vision.framework */; };
+		706B3CE9A15D452892839F56 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9EEF51D75D2415394F7B579 /* PhotosUI.framework */; };
+		39A940DD59724C8988AC5904 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 564FF97FA0CC425E85FDEE7E /* CryptoKit.framework */; };
+		F1DDC17E1A6C4C349ACB741E /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49A57CCF23B748AD9D31991C /* WebKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		E5586A0B9A4F4CBBA80CC2E6 /* ZCode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZCode.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		04A8DAF7FBC24725980ACC5C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		197A58010C8045BFB24B5D75 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		540D8DC9DD644472A4B2B7B2 /* ZCodeMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZCodeMobile.entitlements; sourceTree = "<group>"; };
-		D5B5ED6594504E5FBF290503 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A9178EDEF862437EB6147D62 /* ZCodeMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZCodeMobileApp.swift; sourceTree = "<group>"; };
-		E6AFD667923845B5A10DE194 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		CB76EE02196E44AC92CE9AC3 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		B43896571A3F4119BF3CC56E /* OfficialLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialLink.swift; sourceTree = "<group>"; };
-		6CE302CCE2ED461590AFCBD5 /* OfficialRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialRelay.swift; sourceTree = "<group>"; };
-		49EE1D37B7244552A78601DB /* VSCodeIPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSCodeIPC.swift; sourceTree = "<group>"; };
-		48DDA69DE4C24C18AB99ED92 /* RpcFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RpcFrame.swift; sourceTree = "<group>"; };
-		D524AA553F2848A3BFE989CF /* MonitorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorController.swift; sourceTree = "<group>"; };
-		B65379FCBD8E438D8E2CECA2 /* NotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenter.swift; sourceTree = "<group>"; };
-		AD33D8C3D9D14A2398D4B5C6 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		FDDBC2873A8B4DE38919EE46 /* RemoteWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWebView.swift; sourceTree = "<group>"; };
-		C0BB74CBF6A1477188697FD0 /* QRScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerViewController.swift; sourceTree = "<group>"; };
-		FB4A26A365EA4161A5847A11 /* SilentAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilentAudio.swift; sourceTree = "<group>"; };
-		2DB0BD966DA94950B3431FEE /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
-		399EC45FBCCE40CABB7C6562 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		490F1F3035CB46338F633FE5 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
-		D7441C81B4914CF9AB33FCEC /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
-		58F4874250AF4F738384D2C8 /* Vision.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Vision.framework; path = System/Library/Frameworks/Vision.framework; sourceTree = SDKROOT; };
-		6FCB0281D4724BFC9C108620 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
-		C81A26BB48F540339B77179F /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
-		C070070443C4497390F7549F /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		C9D066D0AAB34507BBEEDA6F /* ZCode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZCode.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		089BBE7967A24C9A8B8CCF55 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F554F9C0C6014623A8E70A7D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		29359AD067064411BE95F760 /* ZCodeMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZCodeMobile.entitlements; sourceTree = "<group>"; };
+		977A8010761E4F8AA7EA4AA4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		46F2CD0B5C834D2C8908837D /* ZCodeMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZCodeMobileApp.swift; sourceTree = "<group>"; };
+		892E7BC99F814BC1B514B4F8 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		BC2E9C57C55C4F1984F1816D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		90D02D90611145768AC1A16A /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		01AB3D4C09D145B491D40B53 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		A3FFBD19D5524073AD8B24E5 /* OfficialLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialLink.swift; sourceTree = "<group>"; };
+		FA53A13249584E36B5CD063F /* OfficialRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialRelay.swift; sourceTree = "<group>"; };
+		2A86F75A5BE7495F91D9D0E3 /* VSCodeIPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSCodeIPC.swift; sourceTree = "<group>"; };
+		1CAF54C68359463E93F4C617 /* RpcFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RpcFrame.swift; sourceTree = "<group>"; };
+		4EED1C3825A947E989180664 /* NotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenter.swift; sourceTree = "<group>"; };
+		F411A494F48C4A4FAD3CF525 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B137E761980D4F868A91B77C /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		45C51D49081A42E382E8AD53 /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
+		5B2E07CE3DB648E7A78537C2 /* InsertWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertWebView.swift; sourceTree = "<group>"; };
+		3D32024C811B40699F530DB2 /* ChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewController.swift; sourceTree = "<group>"; };
+		88A100DC664D4B6BA3D7545F /* QRScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerViewController.swift; sourceTree = "<group>"; };
+		36A1FEC112164201BC3460DE /* SilentAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilentAudio.swift; sourceTree = "<group>"; };
+		E56697EACD3F4FBF9808D4E8 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		CDEA94319E3C4103BBDE12F7 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		6758ECB400ED4779BB1ABBB0 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		93EC1BDFA1944CDFBE67C9B0 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		8AE1D6AB9DA04815BCB82957 /* Vision.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Vision.framework; path = System/Library/Frameworks/Vision.framework; sourceTree = SDKROOT; };
+		C9EEF51D75D2415394F7B579 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
+		564FF97FA0CC425E85FDEE7E /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+		49A57CCF23B748AD9D31991C /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		AD271CCA217345F5A0618C06 /* Frameworks */ = {
+		BA667D504F124524BA60DAEA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				641B7456333E451483219D97 /* UIKit.framework in Frameworks */,
-				769FE0F526D045CD8C5AE025 /* SwiftUI.framework in Frameworks */,
-				7CCF0C090DB7497A97F014C5 /* UserNotifications.framework in Frameworks */,
-				DE9001F0EA974DAA8E4EE8FA /* AVFoundation.framework in Frameworks */,
-				31DA4B6361604E1FA922C5F5 /* Vision.framework in Frameworks */,
-				E550F91C039B4DB48DD03F43 /* PhotosUI.framework in Frameworks */,
-				E4C88423132A4B5F88500E19 /* CryptoKit.framework in Frameworks */,
-				BCC58B32ED9547ED987E129C /* WebKit.framework in Frameworks */,
+				DE3040F048384D748A6E77A4 /* UIKit.framework in Frameworks */,
+				F8CD68F1C7C94ED186672156 /* SwiftUI.framework in Frameworks */,
+				A25A386DDA444A6CBD5F23BE /* UserNotifications.framework in Frameworks */,
+				6DE5EF5E42564EC8B9CAA3EC /* AVFoundation.framework in Frameworks */,
+				C72DE99F4E2340978111D5EE /* Vision.framework in Frameworks */,
+				706B3CE9A15D452892839F56 /* PhotosUI.framework in Frameworks */,
+				39A940DD59724C8988AC5904 /* CryptoKit.framework in Frameworks */,
+				F1DDC17E1A6C4C349ACB741E /* WebKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4CF249D906D84A50A1B9FFD3 = {
+		D0A44C185E9E4BAD8FF4FCFB = {
 			isa = PBXGroup;
 			children = (
-				1BC918C5C6184CBB8953EC53 /* App */,
-				2A9DF33DA616433B82CAE8A7 /* Frameworks */,
-				59B227EE99BA4451B4E1EBD7 /* Products */,
+				3A54BF82225549DB9558FD2F /* App */,
+				E0E859D21B0C4D6EB257314B /* Frameworks */,
+				38F2F9D8963740A2AD99BB5C /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		1BC918C5C6184CBB8953EC53 /* App */ = {
+		3A54BF82225549DB9558FD2F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				A9178EDEF862437EB6147D62 /* ZCodeMobileApp.swift */,
-				D372265A4F2D4BCB82B95C6D /* Theme */,
-				A642443849F744A48D777D6B /* Session */,
-				0D3ABD4709C840068D069D51 /* UI */,
-				984EAC6CDF92468DB35EED90 /* Chat */,
-				D691FBD13F9F48D2B3787FE3 /* Audio */,
-				C2A98536D9114E0F8BD53932 /* Web */,
-				04A8DAF7FBC24725980ACC5C /* Assets.xcassets */,
-				197A58010C8045BFB24B5D75 /* PrivacyInfo.xcprivacy */,
-				540D8DC9DD644472A4B2B7B2 /* ZCodeMobile.entitlements */,
-				D5B5ED6594504E5FBF290503 /* Info.plist */,
+				46F2CD0B5C834D2C8908837D /* ZCodeMobileApp.swift */,
+				4A9C024C6D694CC0BB9EAF72 /* Theme */,
+				B9EB532E00CD4C78ACA87B47 /* Session */,
+				A0C1D13CD9CD450FBC3ADB2F /* UI */,
+				779640D8EF0F4A9CBC9877E3 /* Chat */,
+				3A2F0D95FA254B5CB69679A3 /* Audio */,
+				2689FECE153E4EB49C813BAB /* Web */,
+				089BBE7967A24C9A8B8CCF55 /* Assets.xcassets */,
+				F554F9C0C6014623A8E70A7D /* PrivacyInfo.xcprivacy */,
+				29359AD067064411BE95F760 /* ZCodeMobile.entitlements */,
+				977A8010761E4F8AA7EA4AA4 /* Info.plist */,
 			);
 			path = App;
 			sourceTree = "<group>";
 		};
-		D372265A4F2D4BCB82B95C6D /* Theme */ = {
+		4A9C024C6D694CC0BB9EAF72 /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				892E7BC99F814BC1B514B4F8 /* Theme.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
 		};
-		A642443849F744A48D777D6B /* Session */ = {
+		B9EB532E00CD4C78ACA87B47 /* Session */ = {
 			isa = PBXGroup;
 			children = (
-				E6AFD667923845B5A10DE194 /* Models.swift */,
-				CB76EE02196E44AC92CE9AC3 /* AppSettings.swift */,
-				B43896571A3F4119BF3CC56E /* OfficialLink.swift */,
-				6CE302CCE2ED461590AFCBD5 /* OfficialRelay.swift */,
-				49EE1D37B7244552A78601DB /* VSCodeIPC.swift */,
-				48DDA69DE4C24C18AB99ED92 /* RpcFrame.swift */,
-				D524AA553F2848A3BFE989CF /* MonitorController.swift */,
-				B65379FCBD8E438D8E2CECA2 /* NotificationCenter.swift */,
+				BC2E9C57C55C4F1984F1816D /* Models.swift */,
+				90D02D90611145768AC1A16A /* AppSettings.swift */,
+				01AB3D4C09D145B491D40B53 /* AppState.swift */,
+				A3FFBD19D5524073AD8B24E5 /* OfficialLink.swift */,
+				FA53A13249584E36B5CD063F /* OfficialRelay.swift */,
+				2A86F75A5BE7495F91D9D0E3 /* VSCodeIPC.swift */,
+				1CAF54C68359463E93F4C617 /* RpcFrame.swift */,
+				4EED1C3825A947E989180664 /* NotificationCenter.swift */,
 			);
 			path = Session;
 			sourceTree = "<group>";
 		};
-		0D3ABD4709C840068D069D51 /* UI */ = {
+		A0C1D13CD9CD450FBC3ADB2F /* UI */ = {
 			isa = PBXGroup;
 			children = (
-				AD33D8C3D9D14A2398D4B5C6 /* RootView.swift */,
+				F411A494F48C4A4FAD3CF525 /* RootView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
 		};
-		984EAC6CDF92468DB35EED90 /* Chat */ = {
+		779640D8EF0F4A9CBC9877E3 /* Chat */ = {
 			isa = PBXGroup;
 			children = (
-				C0BB74CBF6A1477188697FD0 /* QRScannerViewController.swift */,
+				B137E761980D4F868A91B77C /* MarkdownRenderer.swift */,
+				45C51D49081A42E382E8AD53 /* ComposerView.swift */,
+				5B2E07CE3DB648E7A78537C2 /* InsertWebView.swift */,
+				3D32024C811B40699F530DB2 /* ChatViewController.swift */,
+				88A100DC664D4B6BA3D7545F /* QRScannerViewController.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
 		};
-		D691FBD13F9F48D2B3787FE3 /* Audio */ = {
+		3A2F0D95FA254B5CB69679A3 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
-				FB4A26A365EA4161A5847A11 /* SilentAudio.swift */,
+				36A1FEC112164201BC3460DE /* SilentAudio.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
 		};
-		C2A98536D9114E0F8BD53932 /* Web */ = {
+		38F2F9D8963740A2AD99BB5C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FDDBC2873A8B4DE38919EE46 /* RemoteWebView.swift */,
-			);
-			path = Web;
-			sourceTree = "<group>";
-		};
-		59B227EE99BA4451B4E1EBD7 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				E5586A0B9A4F4CBBA80CC2E6 /* ZCode.app */,
+				C9D066D0AAB34507BBEEDA6F /* ZCode.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		2A9DF33DA616433B82CAE8A7 /* Frameworks */ = {
+		E0E859D21B0C4D6EB257314B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				2DB0BD966DA94950B3431FEE /* UIKit.framework */,
-				399EC45FBCCE40CABB7C6562 /* SwiftUI.framework */,
-				490F1F3035CB46338F633FE5 /* UserNotifications.framework */,
-				D7441C81B4914CF9AB33FCEC /* AVFoundation.framework */,
-				58F4874250AF4F738384D2C8 /* Vision.framework */,
-				6FCB0281D4724BFC9C108620 /* PhotosUI.framework */,
-				C81A26BB48F540339B77179F /* CryptoKit.framework */,
-				C070070443C4497390F7549F /* WebKit.framework */,
+				E56697EACD3F4FBF9808D4E8 /* UIKit.framework */,
+				CDEA94319E3C4103BBDE12F7 /* SwiftUI.framework */,
+				6758ECB400ED4779BB1ABBB0 /* UserNotifications.framework */,
+				93EC1BDFA1944CDFBE67C9B0 /* AVFoundation.framework */,
+				8AE1D6AB9DA04815BCB82957 /* Vision.framework */,
+				C9EEF51D75D2415394F7B579 /* PhotosUI.framework */,
+				564FF97FA0CC425E85FDEE7E /* CryptoKit.framework */,
+				49A57CCF23B748AD9D31991C /* WebKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -187,13 +192,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B030D525EE644A80BDC4803C /* ZCode */ = {
+		3A01CF9AABFA4B5B8CAD0A5C /* ZCode */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3FE6BAB8D30A45D9AECE34BE /* Build configuration list for PBXNativeTarget "ZCode" */;
+			buildConfigurationList = 2232F4521F7A4FFB8BF41939 /* Build configuration list for PBXNativeTarget "ZCode" */;
 			buildPhases = (
-				EDF3B92FA000460D8EAAD8F4 /* Sources */,
-				AD271CCA217345F5A0618C06 /* Frameworks */,
-				56CF8A7041714436A1D164C2 /* Resources */,
+				F3DA72010CBD4F36A6B45147 /* Sources */,
+				BA667D504F124524BA60DAEA /* Frameworks */,
+				60AD8B0E77E24FAB8D75027B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -201,25 +206,25 @@
 			);
 			name = ZCode;
 			productName = ZCode;
-			productReference = E5586A0B9A4F4CBBA80CC2E6 /* ZCode.app */;
+			productReference = C9D066D0AAB34507BBEEDA6F /* ZCode.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		E18F1EACE1FF43C0A1ECAC86 /* Project object */ = {
+		995EB934702C42628D14E650 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					B030D525EE644A80BDC4803C = {
+					3A01CF9AABFA4B5B8CAD0A5C = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
-			buildConfigurationList = 8C411216AB00478FBF21D219 /* Build configuration list for PBXProject "ZCodeMobile" */;
+			buildConfigurationList = BBB53D1CF0524681AA559B98 /* Build configuration list for PBXProject "ZCodeMobile" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
@@ -228,53 +233,57 @@
 				Base,
 				"zh-Hans",
 			);
-			mainGroup = 4CF249D906D84A50A1B9FFD3;
-			productRefGroup = 59B227EE99BA4451B4E1EBD7 /* Products */;
+			mainGroup = D0A44C185E9E4BAD8FF4FCFB;
+			productRefGroup = 38F2F9D8963740A2AD99BB5C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B030D525EE644A80BDC4803C /* ZCode */,
+				3A01CF9AABFA4B5B8CAD0A5C /* ZCode */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		56CF8A7041714436A1D164C2 /* Resources */ = {
+		60AD8B0E77E24FAB8D75027B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4DAAD9064BC146F4801BD75C /* Assets.xcassets in Resources */,
-				ED25BB74D4474522B2BF59A1 /* PrivacyInfo.xcprivacy in Resources */,
+				3ADB0F807A1449BF99B8DF7B /* Assets.xcassets in Resources */,
+				5A4812AF5500472ABB788F39 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		EDF3B92FA000460D8EAAD8F4 /* Sources */ = {
+		F3DA72010CBD4F36A6B45147 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D153399DE01A49CBB62E7EE1 /* ZCodeMobileApp.swift in Sources */,
-				BCAEAC073371459B884DA598 /* Models.swift in Sources */,
-				8FEB075C35B5413A96069290 /* AppSettings.swift in Sources */,
-				7ADE49C5FEAF477CB99823DA /* OfficialLink.swift in Sources */,
-				ABF3F5A78FA24E86A114E5A7 /* OfficialRelay.swift in Sources */,
-				B95401B218A6450BA36909C3 /* VSCodeIPC.swift in Sources */,
-				5D2A3B72535143DABC0CFDC9 /* RpcFrame.swift in Sources */,
-				B04591E7C67C4AA3AD1EE29A /* MonitorController.swift in Sources */,
-				A32CED2FAF364030ABECF60B /* NotificationCenter.swift in Sources */,
-				F7CA9DB3F37E4C4CA8246FB0 /* RootView.swift in Sources */,
-				08A422AB129048D19C4CEA05 /* RemoteWebView.swift in Sources */,
-				D84C0C01D143485FA34E3F4B /* QRScannerViewController.swift in Sources */,
-				E1477FA61B844F00BA36B42F /* SilentAudio.swift in Sources */,
+				E1F6949BB6CE4C10B701EA91 /* ZCodeMobileApp.swift in Sources */,
+				C8C1DAD6320D44B6B8AC112C /* Theme.swift in Sources */,
+				FBC70B70F62944F2849CB769 /* Models.swift in Sources */,
+				F6CE59EB48A44C7CAE7AD868 /* AppSettings.swift in Sources */,
+				5C93393CD0C94C8AAD454C16 /* AppState.swift in Sources */,
+				A61BB3D8CF66437C9ACE0844 /* OfficialLink.swift in Sources */,
+				A2DC4AC866C1453F921BBBD2 /* OfficialRelay.swift in Sources */,
+				868A95CA3FAF43D2BADCACD1 /* VSCodeIPC.swift in Sources */,
+				1FC096E908BC407A9DB2456E /* RpcFrame.swift in Sources */,
+				B9BA6C7A91074D9DB91A98AE /* NotificationCenter.swift in Sources */,
+				8863723886684F6C946EEC16 /* RootView.swift in Sources */,
+				DA65066C55144FA5B279EB6C /* MarkdownRenderer.swift in Sources */,
+				4684CB054BA641FDBA78A3C4 /* ComposerView.swift in Sources */,
+				73EC151DA4924D3C8FE52DFB /* InsertWebView.swift in Sources */,
+				D4D10C90BACD4CF498A74BED /* ChatViewController.swift in Sources */,
+				88A9AEC2FC93449CA3792882 /* QRScannerViewController.swift in Sources */,
+				A2B28159560C4844B229AACD /* SilentAudio.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		C55195EFD89549798BBE002C /* Debug */ = {
+		FC18114F8BAF48C2B0C23B2B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -297,7 +306,7 @@
 			};
 			name = Debug;
 		};
-		4840F2F469EF45408A5A03A6 /* Release */ = {
+		BB48F3B5AAD84AF5AA4925A2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -318,7 +327,7 @@
 			};
 			name = Release;
 		};
-		D89A0C0BB06E466F82C0B45D /* Debug */ = {
+		865AFB3A869946349A07A939 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -342,7 +351,7 @@
 			};
 			name = Debug;
 		};
-		D942C513BDC64AC9976E6CD6 /* Release */ = {
+		486BA1F5CFB246628AC30DDC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -369,25 +378,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		8C411216AB00478FBF21D219 /* Build configuration list for PBXProject "ZCodeMobile" */ = {
+		BBB53D1CF0524681AA559B98 /* Build configuration list for PBXProject "ZCodeMobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				C55195EFD89549798BBE002C /* Debug */,
-				4840F2F469EF45408A5A03A6 /* Release */,
+				FC18114F8BAF48C2B0C23B2B /* Debug */,
+				BB48F3B5AAD84AF5AA4925A2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3FE6BAB8D30A45D9AECE34BE /* Build configuration list for PBXNativeTarget "ZCode" */ = {
+		2232F4521F7A4FFB8BF41939 /* Build configuration list for PBXNativeTarget "ZCode" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				D89A0C0BB06E466F82C0B45D /* Debug */,
-				D942C513BDC64AC9976E6CD6 /* Release */,
+				865AFB3A869946349A07A939 /* Debug */,
+				486BA1F5CFB246628AC30DDC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = E18F1EACE1FF43C0A1ECAC86 /* Project object */;
+	rootObject = 995EB934702C42628D14E650 /* Project object */;
 }

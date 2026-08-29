@@ -89,32 +89,32 @@ enum MarkdownRenderer {
 
     static func attributed(from markdown: String, trait: UITraitCollection, user: Bool) -> NSAttributedString {
         let ink = user ? UIColor.white : ZUIColor.ink(trait)
-        let muted = ink.withAlphaComponent(0.72)
+        let muted = ZUIColor.inkSoft(trait)
         let output = NSMutableAttributedString()
         let segments = segments(from: markdown)
         for (index, segment) in segments.enumerated() {
             if index > 0 { output.append(NSAttributedString(string: "\n")) }
             switch segment.kind {
             case .heading(let level):
-                let size: CGFloat = level == 1 ? 22 : (level == 2 ? 19 : 17)
+                let size: CGFloat = level == 1 ? 20 : (level == 2 ? 18 : 16.5)
                 output.append(styled(inline(segment.text, ink: ink), size: size, weight: .semibold, color: ink, spacing: 2))
             case .paragraph:
-                output.append(styled(inline(segment.text, ink: ink), size: 16.5, weight: .regular, color: ink, spacing: 4.2))
+                output.append(styled(inline(segment.text, ink: ink), size: 15.5, weight: .regular, color: ink, spacing: 4.2))
             case .bullet:
                 let bullet = NSMutableAttributedString(string: "•  ", attributes: [
-                    .font: UIFont.systemFont(ofSize: 16.5, weight: .semibold),
-                    .foregroundColor: ZUIColor.accent
+                    .font: UIFont.systemFont(ofSize: 15.5, weight: .semibold),
+                    .foregroundColor: ZUIColor.accent(trait)
                 ])
-                bullet.append(styled(inline(segment.text, ink: ink), size: 16.5, weight: .regular, color: ink, spacing: 3))
+                bullet.append(styled(inline(segment.text, ink: ink), size: 15.5, weight: .regular, color: ink, spacing: 3))
                 output.append(bullet)
             case .quote:
-                output.append(styled(inline(segment.text, ink: muted), size: 16, weight: .regular, color: muted, spacing: 3))
+                output.append(styled(inline(segment.text, ink: muted), size: 15, weight: .regular, color: muted, spacing: 3))
             case .code, .mermaid:
-                let font = UIFont.monospacedSystemFont(ofSize: 13.5, weight: .regular)
+                let font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
                 output.append(NSAttributedString(string: segment.text, attributes: [
                     .font: font,
                     .foregroundColor: ink,
-                    .backgroundColor: user ? UIColor.white.withAlphaComponent(0.12) : ZUIColor.codeBgLight.withAlphaComponent(trait.userInterfaceStyle == .dark ? 0.35 : 1)
+                    .backgroundColor: ZUIColor.surface(trait)
                 ]))
             case .divider:
                 output.append(NSAttributedString(string: " ", attributes: [.font: UIFont.systemFont(ofSize: 8)]))

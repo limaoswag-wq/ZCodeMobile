@@ -1,5 +1,58 @@
 import Foundation
 
+/// rpc-frame 接收侧多片组装：官方对超过 1MB 的消息会分片发送。
+final class RpcFrameAssembler {
+    private struct Partial {
+        var parts: [Int: Data]
+        var fragmentCount: Int
+        var messageBytes: Int
+        var checksum: String
+    }
+
+    private var partials: [Int: Partial] = [:]
+
+    func accept(_ payload: [String: Any]) -> Data? {
+        guard let b64 = payload["dataBase64"] as? String, let data = Data(base64Encoded: b64) else { return nil }
+        let seq = RpcFrame.intValue(payload["messageSeq"])
+        let index = RpcFrame.intValue(payload["fragmentIndex"])
+        let count = RpcFrame.intValue(payload["fragmentCount"])
+        let total = RpcFrame.intValue(payload["messageBytes"])
+        guard count > 0 else { return nil }
+        if count == 1 || total <= data.count {
+            partials.removeValue(forKey: seq)
+            return data
+        }
+        var partial = partials[seq] ?? Partial(
+            parts: [:],
+            fragmentCount: count,
+            messageBytes: total,
+            checksum: (payload["checksum"] as? [String: Any])?["value"] as? String ?? ""
+        )
+        partial.parts[index] = data
+        partials[seq] = partial
+
+        let received = partial.parts.values.reduce(0) { $0 + $1.count }
+        let allFragments = partial.parts.count >= count
+        guard allFragments || received >= total else { return nil }
+        var assembled = Data()
+        assembled.reserveCapacity(total)
+        for i in 0..<count {
+            guard let part = partial.parts[i] else {
+                partials.removeValue(forKey: seq)
+                return nil
+            }
+            assembled.append(part)
+        }
+        partials.removeValue(forKey: seq)
+        if partial.checksum.isEmpty || RpcFrame.crc32Hex(assembled) == partial.checksum {
+            return assembled
+        }
+        return nil
+    }
+
+    func reset() { partials.removeAll() }
+}
+
 final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     enum State: Equatable {
         case idle
@@ -32,19 +85,19 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     }
 
     private(set) var state: State = .idle
-    /// 监控模式：只配对 + 拉任务列表做通知，不开工作区桥。
-    var monitorOnly = false
     private(set) var link: OfficialLink?
     private(set) var workspaces: [WorkspaceInfo] = []
     private(set) var tasks: [TaskSummary] = []
     private(set) var activeWorkspaceKey: String?
     private(set) var activeTaskId: String?
     private(set) var deviceName: String?
+    private(set) var providers: [ModelProviderInfo] = []
 
     var onStateChange: ((State) -> Void)?
     var onSnapshot: (() -> Void)?
     var onMessages: ((String, [ChatMessage]) -> Void)?
     var onSendResult: ((Bool, String?) -> Void)?
+    var onProviders: (() -> Void)?
 
     private var session: URLSession!
     private var socket: URLSessionWebSocketTask?
@@ -54,11 +107,13 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     private var identity: BridgeIdentity?
     private var nextPhysicalSeq = 1
     private var nextMessageSeq = 1
+    private let assembler = RpcFrameAssembler()
     private let channels = ChannelClient { _ in }
     private var clientId: String
     private var helloReady = false
     private var openingBridge = false
     private var intentionallyClosed = false
+    private var ackedSeqs: Set<Int> = []
 
     override init() {
         if let stored = UserDefaults.standard.string(forKey: "officialClientId") {
@@ -75,6 +130,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     }
 
     var isPaired: Bool { state == .paired }
+
+    // MARK: - 连接生命周期
 
     func connect(_ link: OfficialLink) {
         disconnect()
@@ -106,6 +163,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         if state != .idle { set(.idle) }
     }
 
+    // MARK: - 对外动作
+
     func openTask(_ taskId: String) {
         activeTaskId = taskId
         if let workspace = workspace(for: taskId) {
@@ -116,26 +175,86 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         onSnapshot?()
     }
 
+    func refreshTasks() {
+        refreshWorkspaces()
+    }
+
     func sendText(_ text: String, taskId: String?) {
         Task { await sendTextAsync(text, taskId: taskId) }
     }
 
-    /// 拉一次工作区和任务列表（监控模式轮询用）。
-    func refreshWorkspaces() {
-        requestCounter += 1
-        sendPayload([
-            "zcode_type": "workspace-list-request",
-            "requestId": "workspaces-\(requestCounter)"
-        ])
+    /// 停止当前任务：下发 abort 会话命令。
+    func stopTask(_ taskId: String?) {
+        Task {
+            guard let sessionId = taskId ?? activeTaskId else { return }
+            do {
+                if !helloReady { try await prepareConversation() }
+                var args = workspaceArgs()
+                args["envelope"] = [
+                    "commandId": UUID().uuidString.lowercased(),
+                    "clientId": clientId,
+                    "sessionId": sessionId,
+                    "type": "abort",
+                    "payload": [String: Any](),
+                    "issuedAt": nowMs()
+                ]
+                _ = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
+                DispatchQueue.main.async { self.onSendResult?(true, nil) }
+            } catch {
+                DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
+            }
+        }
     }
 
-    func stopCurrentTask() {
-        Task { await sendAgentCommand("abort", payload: [:], sessionId: activeTaskId) }
+    /// 新对话：用 firstInput 直接建会话。
+    func startNewChat(firstInput: String) {
+        Task { await createSessionWithFirstInput(firstInput) }
     }
 
-    func newTask() {
-        Task { await createSessionAndNotify() }
+    /// 切模型 / 思考等级：一条 switchModelConfig 会话命令。
+    func switchModel(providerId: String, modelId: String, thought: String) {
+        Task {
+            guard let sessionId = activeTaskId else {
+                DispatchQueue.main.async { self.onSendResult?(false, "先打开一个对话再切换模型") }
+                return
+            }
+            do {
+                if !helloReady { try await prepareConversation() }
+                var args = workspaceArgs()
+                args["envelope"] = [
+                    "commandId": UUID().uuidString.lowercased(),
+                    "clientId": clientId,
+                    "sessionId": sessionId,
+                    "type": "switchModelConfig",
+                    "payload": ["provider": providerId, "model": modelId, "thought": thought],
+                    "issuedAt": nowMs()
+                ]
+                _ = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
+                DispatchQueue.main.async { self.onSendResult?(true, nil) }
+            } catch {
+                DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
+            }
+        }
     }
+
+    /// 拉模型供应商列表（model-provider 通道）。
+    func fetchProviders() {
+        Task {
+            do {
+                if !helloReady { try await prepareConversation() }
+                let result = try await channels.call(channel: "model-provider", method: "getAllCached")
+                let list = Self.parseProviders(result.jsonObject)
+                DispatchQueue.main.async {
+                    self.providers = list
+                    self.onProviders?()
+                }
+            } catch {
+                // 列表拉不到时菜单显示空态，不影响其他功能。
+            }
+        }
+    }
+
+    // MARK: - WebSocketDelegate
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol proto: String?) {
         guard let link else { return }
@@ -158,6 +277,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             set(.failed("桌面端断开了远控连接"))
         }
     }
+
+    // MARK: - 收包
 
     private func listen() {
         socket?.receive { [weak self] result in
@@ -215,8 +336,6 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             let message = json["message"] as? String ?? code
             if code == "KICKED" {
                 set(.failed("这个链接已被其他页面占用，关掉旧页面后重新扫码"))
-            } else if code == "DEVICE_OFFLINE" {
-                set(.waiting)
             } else {
                 set(.failed(message.isEmpty ? "远控连接失败" : message))
             }
@@ -242,11 +361,16 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
     private func handlePayload(_ payload: [String: Any]) {
         let kind = payload["zcode_type"] as? String
         if kind == "rpc-frame" {
-            if let frame = RpcFrame.decodeMessage(payload) {
+            let messageSeq = RpcFrame.intValue(payload["messageSeq"])
+            if !ackedSeqs.contains(messageSeq) {
+                ackedSeqs.insert(messageSeq)
+                if ackedSeqs.count > 512 { ackedSeqs.removeFirst() }
                 if let identity {
-                    sendPayload(RpcFrame.ack(identity: identity, messageSeq: frame.messageSeq))
+                    sendPayload(RpcFrame.ack(identity: identity, messageSeq: messageSeq))
                 }
-                channels.receive(frame.data)
+            }
+            if let data = assembler.accept(payload) {
+                channels.receive(data)
             }
             return
         }
@@ -272,6 +396,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    // MARK: - 任务列表 / 桥
+
     private func applyBootstrap(_ result: [String: Any]) {
         applyWorkspaceList(result)
         if let view = result["initialViewState"] as? [String: Any] {
@@ -285,9 +411,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         if activeTaskId == nil { activeTaskId = tasks.first?.id }
         if activeWorkspaceKey == nil { activeWorkspaceKey = workspaces.first?.key }
         onSnapshot?()
-        if !monitorOnly {
-            openWorkspaceBridgeIfNeeded()
-        }
+        openWorkspaceBridgeIfNeeded()
     }
 
     private func applyWorkspaceList(_ result: [String: Any]) {
@@ -309,6 +433,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         identity = next
         nextPhysicalSeq = 1
         nextMessageSeq = 1
+        ackedSeqs.removeAll()
+        assembler.reset()
         helloReady = false
         channels.reset { [weak self] data in
             self?.sendRawMessage(data)
@@ -352,38 +478,40 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    private func prepareConversation() async {
-        do {
-            _ = try await channels.call(channel: "zcode-agent", method: "initialize", args: [workspaceArgs()])
-            _ = try await channels.call(channel: "zcode-agent", method: "helloConversationV4")
-            _ = try await channels.call(channel: "zcode-agent", method: "initializeConversationV4", args: [[
-                "kind": "clientHello",
-                "protocolVersion": 3,
-                "clientId": clientId,
-                "clientKind": "web",
-                "appVersion": "1.0.0",
-                "capabilities": ["workspaceHookReviewUi": true]
-            ]])
-            helloReady = true
-            if let taskId = activeTaskId {
-                await loadMessages(for: taskId)
-            }
-        } catch {
-            DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
+    // MARK: - 会话桥调用
+
+    private func prepareConversation() async throws {
+        _ = try await channels.call(channel: "zcode-agent", method: "initialize", args: [workspaceArgs()])
+        _ = try await channels.call(channel: "zcode-agent", method: "helloConversationV4")
+        _ = try await channels.call(channel: "zcode-agent", method: "initializeConversationV4", args: [[
+            "kind": "clientHello",
+            "protocolVersion": 3,
+            "clientId": clientId,
+            "clientKind": "web",
+            "appVersion": "1.0.0",
+            "capabilities": ["workspaceHookReviewUi": true]
+        ]])
+        helloReady = true
+        if let taskId = activeTaskId {
+            await loadMessages(for: taskId)
         }
     }
 
-    private func loadMessages(for taskId: String) async {
+    func loadMessages(for taskId: String) {
+        Task { await loadMessagesAsync(for: taskId) }
+    }
+
+    private func loadMessagesAsync(for taskId: String) async {
         guard helloReady else { return }
         do {
             var args = workspaceArgs()
             args["sessionId"] = taskId
-            args["limit"] = 80
+            args["limit"] = 120
             let result = try await channels.call(channel: "zcode-agent", method: "conversationRowsRangeV4", args: [args])
             let messages = Self.parseMessages(result.jsonObject)
             DispatchQueue.main.async { self.onMessages?(taskId, messages) }
         } catch {
-            // 历史消息走 conversationRowsRange，没订阅时桌面端会拒；配对和发消息不受影响。
+            // 未订阅时桌面端会拒；配对、任务列表、发送不受影响。
         }
     }
 
@@ -391,13 +519,10 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         do {
-            if !helloReady { await prepareConversation() }
-            var sessionId = taskId ?? activeTaskId
-            if sessionId == nil {
-                sessionId = try await createSession()
-                activeTaskId = sessionId
+            if !helloReady { try await prepareConversation() }
+            guard let sessionId = taskId ?? activeTaskId else {
+                throw simpleError("还没有可发送的对话")
             }
-            guard let sessionId else { throw simpleError("还没有可发送的任务") }
             var args = workspaceArgs()
             args["envelope"] = [
                 "commandId": UUID().uuidString.lowercased(),
@@ -411,9 +536,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             let status = result.dictionary?["status"] as? String
             DispatchQueue.main.async {
                 if status == "accepted" || status == "duplicate" {
-                    self.activeTaskId = sessionId
                     self.onSendResult?(true, nil)
-                    Task { await self.loadMessages(for: sessionId) }
+                    self.loadMessages(for: sessionId)
                 } else {
                     let reason = result.dictionary?["reasonCode"] as? String ?? "发送失败"
                     self.onSendResult?(false, reason)
@@ -424,61 +548,44 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    private func createSessionAndNotify() async {
+    private func createSessionWithFirstInput(_ text: String) async {
         do {
-            if !helloReady { await prepareConversation() }
-            let sessionId = try await createSession()
-            DispatchQueue.main.async {
-                self.activeTaskId = sessionId
-                self.onSnapshot?()
+            if !helloReady { try await prepareConversation() }
+            var payload: [String: Any] = [:]
+            if let workspace = selectedWorkspace() {
+                if let path = workspace.path {
+                    payload["workspaceId"] = path
+                    payload["workspacePath"] = path
+                }
+                if let identity = workspace.identity { payload["workspaceIdentity"] = identity }
             }
-        } catch {
-            DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
-        }
-    }
-
-    private func createSession() async throws -> String {
-        var args = workspaceArgs()
-        var payload: [String: Any] = [:]
-        if let workspace = selectedWorkspace() {
-            if let path = workspace.path {
-                payload["workspaceId"] = path
-                payload["workspacePath"] = path
-            }
-            if let identity = workspace.identity { payload["workspaceIdentity"] = identity }
-        }
-        args["envelope"] = [
-            "commandId": UUID().uuidString.lowercased(),
-            "clientId": clientId,
-            "type": "createSession",
-            "payload": payload,
-            "issuedAt": nowMs()
-        ]
-        let result = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
-        if let nested = result.dictionary?["result"] as? [String: Any],
-           let sessionId = nested["sessionId"] as? String {
-            return sessionId
-        }
-        throw simpleError("桌面端没有返回新任务")
-    }
-
-    @discardableResult
-    private func sendAgentCommand(_ type: String, payload: [String: Any], sessionId: String?) async -> Bool {
-        guard let sessionId else { return false }
-        do {
+            payload["firstInput"] = ["text": text]
             var args = workspaceArgs()
             args["envelope"] = [
                 "commandId": UUID().uuidString.lowercased(),
                 "clientId": clientId,
-                "sessionId": sessionId,
-                "type": type,
+                "type": "createSession",
                 "payload": payload,
                 "issuedAt": nowMs()
             ]
-            _ = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
-            return true
+            let result = try await channels.call(channel: "zcode-agent", method: "sendConversationCommandV4", args: [args])
+            var newId: String?
+            if let nested = result.dictionary?["result"] as? [String: Any],
+               let sessionId = nested["sessionId"] as? String {
+                newId = sessionId
+            }
+            DispatchQueue.main.async {
+                if let newId {
+                    self.activeTaskId = newId
+                    self.onSendResult?(true, nil)
+                    self.onSnapshot?()
+                    self.loadMessages(for: newId)
+                } else {
+                    self.onSendResult?(false, "桌面端没有返回新对话")
+                }
+            }
         } catch {
-            return false
+            DispatchQueue.main.async { self.onSendResult?(false, error.localizedDescription) }
         }
     }
 
@@ -528,6 +635,15 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         ])
     }
 
+    /// 拉一次工作区和任务列表。
+    func refreshWorkspaces() {
+        requestCounter += 1
+        sendPayload([
+            "zcode_type": "workspace-list-request",
+            "requestId": "workspaces-\(requestCounter)"
+        ])
+    }
+
     private func sendJSON(_ object: [String: Any]) {
         guard JSONSerialization.isValidJSONObject(object),
               let data = try? JSONSerialization.data(withJSONObject: object),
@@ -536,11 +652,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         let send = { [weak self] in
             self?.socket?.send(.string(string)) { _ in }
         }
-        if Thread.isMainThread {
-            send()
-        } else {
-            DispatchQueue.main.async { send() }
-        }
+        if Thread.isMainThread { send() } else { DispatchQueue.main.async { send() } }
     }
 
     private func startHeartbeat() {
@@ -561,6 +673,8 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
         onStateChange?(next)
         onSnapshot?()
     }
+
+    // MARK: - 辅助
 
     private func selectedWorkspace() -> WorkspaceInfo? {
         if let activeWorkspaceKey, let match = workspaces.first(where: { $0.key == activeWorkspaceKey }) {
@@ -626,6 +740,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                 mode: nil,
                 model: item["provider"] as? String,
                 workspacePath: item["workspacePath"] as? String,
+                pinned: (item["pinned"] as? Bool) ?? false,
                 updatedAt: RpcFrame.intValue(item["updatedAt"]),
                 createdAt: RpcFrame.intValue(item["createdAt"])
             )
@@ -651,35 +766,28 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
                 ?? ""
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             let id = (row["entityId"] as? String) ?? "row-\(RpcFrame.intValue(row["rowId"]))"
+            let createdAt = RpcFrame.intValue(row["createdAt"])
             if kind == "userInput" || kind == "user" {
                 guard !trimmed.isEmpty else { continue }
                 messages.append(ChatMessage(
-                    id: id,
-                    role: "user",
-                    createdAt: RpcFrame.intValue(row["createdAt"]),
+                    id: id, role: "user", kind: kind, createdAt: createdAt,
                     blocks: [ChatBlock(id: "\(id)-text", kind: "text", text: trimmed)]
                 ))
             } else if kind == "assistantText" || kind == "assistant" {
                 guard !trimmed.isEmpty else { continue }
                 messages.append(ChatMessage(
-                    id: id,
-                    role: "assistant",
-                    createdAt: RpcFrame.intValue(row["createdAt"]),
-                    blocks: [ChatBlock(id: "\(id)-text", kind: "text", text: trimmed)]
+                    id: id, role: "assistant", kind: kind, createdAt: createdAt,
+                    blocks: [ChatBlock(id: "\(id)-text", kind: "text", text: text)]
                 ))
             } else if kind == "reasoning" {
                 guard !trimmed.isEmpty else { continue }
                 messages.append(ChatMessage(
-                    id: id,
-                    role: "assistant",
-                    createdAt: RpcFrame.intValue(row["createdAt"]),
+                    id: id, role: "assistant", kind: kind, createdAt: createdAt,
                     blocks: [ChatBlock(id: "\(id)-reason", kind: "reasoning", text: trimmed)]
                 ))
             } else if kind == "toolCall" {
                 messages.append(ChatMessage(
-                    id: id,
-                    role: "assistant",
-                    createdAt: RpcFrame.intValue(row["createdAt"]),
+                    id: id, role: "assistant", kind: kind, createdAt: createdAt,
                     blocks: [ChatBlock(
                         id: "\(id)-tool",
                         kind: "tool",
@@ -691,5 +799,36 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
             }
         }
         return messages
+    }
+
+    static func parseProviders(_ raw: Any?) -> [ModelProviderInfo] {
+        let array: [Any]
+        if let value = raw as? [Any] {
+            array = value
+        } else if let dict = raw as? [String: Any], let inner = dict["result"] as? [Any] {
+            array = inner
+        } else {
+            array = []
+        }
+        return array.compactMap { item -> ModelProviderInfo? in
+            guard let dict = item as? [String: Any], let id = dict["id"] as? String else { return nil }
+            let models = ((dict["models"] as? [[String: Any]]) ?? []).compactMap { model -> ModelProviderInfo.ModelInfo? in
+                guard let modelId = model["id"] as? String else { return nil }
+                return ModelProviderInfo.ModelInfo(id: modelId, name: (model["name"] as? String) ?? modelId)
+            }
+            return ModelProviderInfo(id: id, name: (dict["name"] as? String) ?? id, models: models)
+        }
+    }
+}
+
+extension OfficialRelay {
+    var selectedWorkspaceLabel: String? {
+        if let key = activeWorkspaceKey {
+            if let match = workspaces.first(where: { $0.key == key }) {
+                return match.label ?? match.path ?? match.key
+            }
+            return key
+        }
+        return workspaces.first?.label ?? workspaces.first?.path
     }
 }

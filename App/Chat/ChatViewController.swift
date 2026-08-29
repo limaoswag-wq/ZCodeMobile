@@ -1,19 +1,34 @@
 import UIKit
 
+/// 聊天页（UIKit 表格）：用户气泡 / 已工作折叠时间线 / 正文文档流。
+/// 首页（无活动任务）也复用这个控制器：头部为 ☰，中间是 Logo + 问候。
 final class ChatViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, ComposerViewDelegate {
-    var client: BridgeClient!
-    var onOpenSettings: (() -> Void)?
+    var app: AppState!
+    var onOpenSidebar: (() -> Void)?
+    var onBack: (() -> Void)?
+    var onOpenModelMenu: (() -> Void)?
+    var onNewChat: (() -> Void)?
+    var onOpenAttach: (() -> Void)?
     var onOpenTasks: (() -> Void)?
-    var onScan: (() -> Void)?
-    var onPaste: (() -> Void)?
 
     private let table = UITableView(frame: .zero, style: .plain)
     private let composer = ComposerView()
-    private let header = ChatHeaderView()
-    private let empty = ConnectEmptyView()
+    private let header = ChatHeader()
+    private let emptyView = ChatEmptyView()
     private var composerBottom: NSLayoutConstraint?
-    private var messages: [ChatMessage] = []
+    private var rows: [ChatRow] = []
     private var observer: NSObjectProtocol?
+    private var runningTimer: Timer?
+    private var expandedWorks: Set<String> = []
+    private var expandedThinkings: Set<String> = []
+    private var lastSignature = ""
+
+    enum ChatRow {
+        case user(id: String, text: String, time: Int)
+        case work(id: String, items: [WorkItem], startMs: Int, endMs: Int, running: Bool)
+        case text(id: String, markdown: String)
+        case web(id: String, code: String, language: String)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -21,11 +36,10 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
         navigationController?.setNavigationBarHidden(true, animated: false)
 
         header.translatesAutoresizingMaskIntoConstraints = false
-        header.onSettings = { [weak self] in self?.onOpenSettings?() }
-        header.onTasks = { [weak self] in self?.onOpenTasks?() }
-        header.onNew = { [weak self] in
-            Task { await self?.client.newTask() }
-        }
+        header.onMenu = { [weak self] in self?.onOpenSidebar?() }
+        header.onBack = { [weak self] in self?.onBack?() }
+        header.onPill = { [weak self] in self?.onOpenModelMenu?() }
+        header.onNew = { [weak self] in self?.onNewChat?() }
 
         table.translatesAutoresizingMaskIntoConstraints = false
         table.backgroundColor = .clear
@@ -33,24 +47,22 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
         table.dataSource = self
         table.delegate = self
         table.keyboardDismissMode = .interactive
-        table.contentInset = UIEdgeInsets(top: 8, left: 0, bottom: 12, right: 0)
+        table.contentInset = UIEdgeInsets(top: 4, left: 0, bottom: 10, right: 0)
         table.rowHeight = UITableView.automaticDimension
-        table.estimatedRowHeight = 88
-        table.register(BubbleCell.self, forCellReuseIdentifier: BubbleCell.id)
-        table.register(ToolCell.self, forCellReuseIdentifier: ToolCell.id)
+        table.estimatedRowHeight = 80
+        table.register(UserCell.self, forCellReuseIdentifier: UserCell.id)
+        table.register(WorkCell.self, forCellReuseIdentifier: WorkCell.id)
+        table.register(BodyCell.self, forCellReuseIdentifier: BodyCell.id)
         table.register(WebCell.self, forCellReuseIdentifier: WebCell.id)
 
         composer.translatesAutoresizingMaskIntoConstraints = false
         composer.delegate = self
 
-        empty.translatesAutoresizingMaskIntoConstraints = false
-        empty.onScan = { [weak self] in self?.onScan?() }
-        empty.onAlbum = { [weak self] in self?.onScan?() }
-        empty.onPaste = { [weak self] in self?.onPaste?() }
+        emptyView.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(header)
         view.addSubview(table)
-        view.addSubview(empty)
+        view.addSubview(emptyView)
         view.addSubview(composer)
 
         composerBottom = composer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
@@ -58,88 +70,182 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
             header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             header.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             header.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            header.heightAnchor.constraint(equalToConstant: 64),
+            header.heightAnchor.constraint(equalToConstant: 54),
 
             table.topAnchor.constraint(equalTo: header.bottomAnchor),
             table.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             table.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             table.bottomAnchor.constraint(equalTo: composer.topAnchor),
 
-            empty.topAnchor.constraint(equalTo: table.topAnchor),
-            empty.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            empty.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            empty.bottomAnchor.constraint(equalTo: table.bottomAnchor),
+            emptyView.topAnchor.constraint(equalTo: table.topAnchor),
+            emptyView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyView.bottomAnchor.constraint(equalTo: table.bottomAnchor),
 
             composer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             composer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             composerBottom!
         ])
 
-        observer = NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillChangeFrameNotification, object: nil, queue: .main) { [weak self] note in
+        observer = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillChangeFrameNotification, object: nil, queue: .main
+        ) { [weak self] note in
             self?.handleKeyboard(note)
         }
-        reloadFromClient()
+        runningTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tickRunningHeader()
+        }
+        if let runningTimer { RunLoop.main.add(runningTimer, forMode: .common) }
+        reloadFromApp()
     }
 
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
+        runningTimer?.invalidate()
     }
 
-    func reloadFromClient() {
-        let next = client.snapshot.messages.filter { message in
-            if message.role != "user" && message.role != "assistant" { return false }
-            return !message.blocks.isEmpty
-        }
-        let changed = next.map(\.id) != messages.map(\.id) || next.last?.markdown != messages.last?.markdown
-        messages = next
+    func reloadFromApp() {
+        let entries = app.currentTaskEntries
+        rows = Self.buildRows(from: entries)
+        let signature = rows.map(\.rowId).joined(separator: "|") + "#\(app.messages.count)"
+        let changed = signature != lastSignature
+        lastSignature = signature
+
         header.configure(
-            task: client.currentTask,
-            connection: client.connection,
-            running: client.snapshot.running,
-            deviceName: client.deviceTitle
+            mode: app.activeTaskId == nil ? .home : .chat,
+            title: app.activeTask?.title ?? "",
+            provider: app.selectedProviderId,
+            model: app.selectedModelId,
+            thought: app.selectedThought,
+            connected: app.connection.isConnected
         )
-        composer.running = client.snapshot.running
-        composer.connected = client.connection.isConnected
-        composer.placeholderText = client.connection.isConnected ? "问 ZCode…" : "连接后向 ZCode 提问…"
-        empty.isHidden = client.connection.isConnected
-        empty.configure(connection: client.connection, error: client.errorText)
-        if composer.textView.isFirstResponder == false {
-            composer.text = client.composerText
-        }
+        let showEmpty = app.activeTaskId == nil || rows.isEmpty
+        emptyView.isHidden = !showEmpty
+        emptyView.configure(device: app.deviceName, workspace: app.relay.selectedWorkspaceLabel, connected: app.connection.isConnected)
+        composer.running = app.isTaskRunning
+        composer.placeholderText = app.activeTaskId == nil ? "向 ZCode 提问…" : "提出后续修改要求…"
+
         if changed {
             table.reloadData()
-            scrollToBottom(animated: false)
+            if needsScrollBottom {
+                scrollToBottom(animated: false)
+                needsScrollBottom = false
+            }
         }
         view.backgroundColor = ZUIColor.canvas(traitCollection)
     }
 
-    func numberOfSections(in tableView: UITableView) -> Int { messages.count }
+    private var needsScrollBottom = true
 
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        visibleBlocks(in: messages[section]).count
+    private static func buildRows(from entries: [ChatEntry]) -> [ChatRow] {
+        var rows: [ChatRow] = []
+        for entry in entries {
+            switch entry.kind {
+            case .user(let text, let time):
+                rows.append(.user(id: entry.id, text: text, time: time))
+            case .work(let id, let items, let startMs, let endMs, let running):
+                rows.append(.work(id: id, items: items, startMs: startMs, endMs: endMs, running: running))
+            case .body(let id, let markdown, _):
+                let segments = MarkdownRenderer.segments(from: markdown)
+                var textChunks: [String] = []
+                func flush(_ index: Int) {
+                    let joined = textChunks.joined(separator: " ")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !joined.isEmpty {
+                        rows.append(.text(id: "\(id)-t\(index)", markdown: joined))
+                    }
+                    textChunks.removeAll()
+                }
+                for (index, segment) in segments.enumerated() {
+                    switch segment.kind {
+                    case .code:
+                        flush(index)
+                        rows.append(.web(id: "\(id)-c\(index)", code: segment.text, language: "code"))
+                    case .mermaid:
+                        flush(index)
+                        rows.append(.web(id: "\(id)-m\(index)", code: segment.text, language: "mermaid"))
+                    case .heading:
+                        textChunks.append("# " + segment.text)
+                    case .bullet:
+                        textChunks.append("- " + segment.text)
+                    case .quote:
+                        textChunks.append("> " + segment.text)
+                    case .divider:
+                        textChunks.append("---")
+                    case .paragraph:
+                        textChunks.append(segment.text)
+                    }
+                }
+                flush(segments.count)
+            }
+        }
+        return rows
     }
 
+    // MARK: - Table
+
+    func numberOfSections(in tableView: UITableView) -> Int { 1 }
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let message = messages[indexPath.section]
-        let block = visibleBlocks(in: message)[indexPath.row]
-        if block.kind == "tool" {
-            let cell = tableView.dequeueReusableCell(withIdentifier: ToolCell.id, for: indexPath) as! ToolCell
-            cell.configure(block, trait: traitCollection)
+        let row = rows[indexPath.row]
+        switch row {
+        case .user(let id, let text, let time):
+            let cell = tableView.dequeueReusableCell(withIdentifier: UserCell.id, for: indexPath) as! UserCell
+            cell.configure(text: text, time: time, trait: traitCollection)
             return cell
-        }
-        if block.kind == "mermaid" || (block.kind == "code" && block.text.count > 280) {
+        case .work(let id, let items, let startMs, let endMs, let running):
+            let cell = tableView.dequeueReusableCell(withIdentifier: WorkCell.id, for: indexPath) as! WorkCell
+            cell.configure(
+                id: id,
+                items: items,
+                startMs: startMs,
+                endMs: endMs,
+                running: running,
+                expanded: expandedWorks.contains(id),
+                expandedThinkings: expandedThinkings,
+                trait: traitCollection,
+                onToggleWork: { [weak self] in
+                    guard let self else { return }
+                    if self.expandedWorks.contains(id) {
+                        self.expandedWorks.remove(id)
+                    } else {
+                        self.expandedWorks.insert(id)
+                    }
+                    self.table.beginUpdates()
+                    self.table.reloadRows(at: [indexPath], with: .none)
+                    self.table.endUpdates()
+                },
+                onToggleThinking: { [weak self] itemId in
+                    guard let self else { return }
+                    if self.expandedThinkings.contains(itemId) {
+                        self.expandedThinkings.remove(itemId)
+                    } else {
+                        self.expandedThinkings.insert(itemId)
+                    }
+                    self.table.beginUpdates()
+                    self.table.reloadRows(at: [indexPath], with: .none)
+                    self.table.endUpdates()
+                }
+            )
+            return cell
+        case .text(let id, let markdown):
+            let cell = tableView.dequeueReusableCell(withIdentifier: BodyCell.id, for: indexPath) as! BodyCell
+            cell.configure(markdown: markdown, trait: traitCollection)
+            return cell
+        case .web(let id, let code, let language):
             let cell = tableView.dequeueReusableCell(withIdentifier: WebCell.id, for: indexPath) as! WebCell
             cell.onHeightChange = { [weak tableView] in
                 tableView?.beginUpdates()
                 tableView?.endUpdates()
             }
-            cell.configure(code: block.text, language: block.kind == "mermaid" ? "mermaid" : "code", trait: traitCollection)
+            cell.configure(code: code, language: language, trait: traitCollection)
             return cell
         }
-        let cell = tableView.dequeueReusableCell(withIdentifier: BubbleCell.id, for: indexPath) as! BubbleCell
-        cell.configure(block: block, user: message.isUser, trait: traitCollection)
-        return cell
     }
+
+    // MARK: - Composer
 
     func composerDidChangeHeight(_ composer: ComposerView) {
         view.layoutIfNeeded()
@@ -147,76 +253,36 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     }
 
     func composerDidTapSend(_ composer: ComposerView) {
-        client.composerText = composer.text
-        Task { await client.sendCurrent() }
+        let text = composer.text
         composer.text = ""
+        needsScrollBottom = true
+        app.send(text)
     }
 
     func composerDidTapStop(_ composer: ComposerView) {
-        Task { await client.stopTask() }
+        app.relay.stopTask(app.activeTaskId)
     }
 
     func composerDidTapAttach(_ composer: ComposerView) {
-        onOpenTasks?()
+        onOpenAttach?()
     }
 
-    private func visibleBlocks(in message: ChatMessage) -> [ChatBlock] {
-        var result: [ChatBlock] = []
-        for block in message.blocks {
-            if block.kind == "reasoning" {
-                if client.settings.showReasoning && !block.text.isEmpty { result.append(block) }
-                continue
-            }
-            if block.kind == "tool" {
-                result.append(block)
-                continue
-            }
-            if block.kind != "text" {
-                if !block.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    result.append(block)
-                }
-                continue
-            }
-            let segments = MarkdownRenderer.segments(from: block.text)
-            var textChunks: [String] = []
-            func flushText(_ index: Int) {
-                let joined = textChunks.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-                if !joined.isEmpty {
-                    result.append(ChatBlock(id: "\(block.id)-text-\(index)", kind: "text", text: joined))
-                }
-                textChunks.removeAll()
-            }
-            for (index, segment) in segments.enumerated() {
-                switch segment.kind {
-                case .code:
-                    flushText(index)
-                    result.append(ChatBlock(id: "\(block.id)-code-\(index)", kind: "code", text: segment.text))
-                case .mermaid:
-                    flushText(index)
-                    result.append(ChatBlock(id: "\(block.id)-mermaid-\(index)", kind: "mermaid", text: segment.text))
-                case .heading:
-                    textChunks.append("# " + segment.text)
-                case .bullet:
-                    textChunks.append("- " + segment.text)
-                case .quote:
-                    textChunks.append("> " + segment.text)
-                case .divider:
-                    textChunks.append("---")
-                case .paragraph:
-                    textChunks.append(segment.text)
-                }
-            }
-            flushText(segments.count)
-        }
-        return result
-    }
+    // MARK: - 其他
 
     private func scrollToBottom(animated: Bool) {
-        let sections = table.numberOfSections
-        guard sections > 0 else { return }
-        let rows = table.numberOfRows(inSection: sections - 1)
-        guard rows > 0 else { return }
-        table.scrollToRow(at: IndexPath(row: rows - 1, section: sections - 1), at: .bottom, animated: animated)
+        let count = rows.count
+        guard count > 0 else { return }
+        table.scrollToRow(at: IndexPath(row: count - 1, section: 0), at: .bottom, animated: animated)
+    }
+
+    private func tickRunningHeader() {
+        guard app.isTaskRunning else { return }
+        for case .work(let id, _, _, _, let running) in rows where running {
+            if let index = rows.firstIndex(where: { $0.rowId == id }),
+               let cell = table.cellForRow(at: IndexPath(row: index, section: 0)) as? WorkCell {
+                cell.refreshDurationIfVisible()
+            }
+        }
     }
 
     private func handleKeyboard(_ note: Notification) {
@@ -228,243 +294,548 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
     }
 }
 
-final class ChatHeaderView: UIView {
-    var onSettings: (() -> Void)?
-    var onTasks: (() -> Void)?
+extension ChatViewController.ChatRow {
+    var rowId: String {
+        switch self {
+        case .user(let id, _, _): return id
+        case .work(let id, _, _, _, _): return id
+        case .text(let id, _): return id
+        case .web(let id, _, _): return id
+        }
+    }
+}
+
+// MARK: - 头部
+
+final class ChatHeader: UIView {
+    enum Mode { case home, chat }
+
+    var onMenu: (() -> Void)?
+    var onBack: (() -> Void)?
+    var onPill: (() -> Void)?
     var onNew: (() -> Void)?
 
-    private let title = UILabel()
-    private let subtitle = UILabel()
-    private let settings = UIButton(type: .system)
-    private let tasks = UIButton(type: .system)
-    private let add = UIButton(type: .system)
+    private let menuButton = UIButton(type: .system)
+    private let backButton = UIButton(type: .system)
+    private let titleLabel = UILabel()
+    private let pill = UIButton(type: .system)
+    private let newButton = UIButton(type: .system)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        title.font = .systemFont(ofSize: 18, weight: .semibold)
-        subtitle.font = .systemFont(ofSize: 12, weight: .medium)
-        subtitle.textColor = ZUIColor.ink.withAlphaComponent(0.55)
-        [title, subtitle].forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
-
-        func round(_ button: UIButton, image: String) {
+        func round(_ button: UIButton, symbol: String, radius: CGFloat = 12, tint: UIColor? = nil, bg: UIColor? = nil) {
             button.translatesAutoresizingMaskIntoConstraints = false
-            button.setImage(UIImage(systemName: image), for: .normal)
-            button.tintColor = ZUIColor.ink
-            button.backgroundColor = UIColor.white.withAlphaComponent(0.62)
-            button.layer.cornerRadius = 18
+            button.setImage(UIImage(systemName: symbol), for: .normal)
+            button.backgroundColor = bg ?? ZUIColor.chip(UITraitCollection.current)
+            button.layer.cornerRadius = radius
             button.widthAnchor.constraint(equalToConstant: 36).isActive = true
             button.heightAnchor.constraint(equalToConstant: 36).isActive = true
+            button.tintColor = tint ?? ZUIColor.ink(UITraitCollection.current)
         }
-        round(settings, image: "gearshape")
-        round(tasks, image: "square.stack")
-        round(add, image: "plus")
-        settings.addTarget(self, action: #selector(tapSettings), for: .touchUpInside)
-        tasks.addTarget(self, action: #selector(tapTasks), for: .touchUpInside)
-        add.addTarget(self, action: #selector(tapNew), for: .touchUpInside)
+        round(menuButton, symbol: "line.3.horizontal")
+        round(backButton, symbol: "chevron.left", bg: .clear)
+        round(newButton, symbol: "square.and.pencil", radius: 12)
 
-        let labels = UIStackView(arrangedSubviews: [title, subtitle])
-        labels.axis = .vertical
-        labels.spacing = 2
-        labels.translatesAutoresizingMaskIntoConstraints = false
+        pill.translatesAutoresizingMaskIntoConstraints = false
+        pill.layer.cornerRadius = 18
+        pill.backgroundColor = ZUIColor.chip(UITraitCollection.current)
+        pill.contentEdgeInsets = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 10)
+        pill.setTitleColor(ZUIColor.ink(UITraitCollection.current), for: .normal)
+        pill.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+        pill.semanticContentAttribute = .forceRightToLeft
+        pill.setImage(UIImage(systemName: "chevron.down"), for: .normal)
+        pill.imageEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: -4)
+        pill.tintColor = ZUIColor.inkSoft(UITraitCollection.current)
 
-        let right = UIStackView(arrangedSubviews: [add, tasks, settings])
-        right.axis = .horizontal
-        right.spacing = 8
-        right.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.font = .systemFont(ofSize: 15.5, weight: .bold)
+        titleLabel.textColor = ZUIColor.ink(UITraitCollection.current)
 
-        addSubview(labels)
-        addSubview(right)
+        menuButton.addTarget(self, action: #selector(tapMenu), for: .touchUpInside)
+        backButton.addTarget(self, action: #selector(tapBack), for: .touchUpInside)
+        pill.addTarget(self, action: #selector(tapPill), for: .touchUpInside)
+        newButton.addTarget(self, action: #selector(tapNew), for: .touchUpInside)
+
+        addSubview(titleLabel)
+        addSubview(menuButton)
+        addSubview(backButton)
+        addSubview(pill)
+        addSubview(newButton)
         NSLayoutConstraint.activate([
-            labels.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
-            labels.centerYAnchor.constraint(equalTo: centerYAnchor),
-            right.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            right.centerYAnchor.constraint(equalTo: centerYAnchor),
-            labels.trailingAnchor.constraint(lessThanOrEqualTo: right.leadingAnchor, constant: -12)
+            backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            menuButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            menuButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 10),
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            newButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            newButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pill.trailingAnchor.constraint(equalTo: newButton.leadingAnchor, constant: -8),
+            pill.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pill.heightAnchor.constraint(equalToConstant: 36),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: pill.leadingAnchor, constant: -8)
         ])
+        applyColors()
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(task: TaskSummary?, connection: ConnectionState, running: Bool, deviceName: String) {
-        if connection.isConnected {
-            title.text = task?.title.isEmpty == false ? task!.title : deviceName
-            let status = running ? "进行中" : (task?.statusLabel ?? "已连接")
-            subtitle.text = "\(deviceName) · \(status)"
-        } else {
-            title.text = "ZCode Mobile"
-            subtitle.text = connection.label
-        }
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyColors()
     }
 
-    @objc private func tapSettings() { onSettings?() }
-    @objc private func tapTasks() { onTasks?() }
+    private func applyColors() {
+        let trait = traitCollection
+        menuButton.backgroundColor = ZUIColor.chip(trait)
+        menuButton.tintColor = ZUIColor.ink(trait)
+        backButton.tintColor = ZUIColor.ink(trait)
+        newButton.backgroundColor = ZUIColor.chip(trait)
+        newButton.tintColor = ZUIColor.ink(trait)
+        pill.backgroundColor = ZUIColor.chip(trait)
+        pill.setTitleColor(ZUIColor.ink(trait), for: .normal)
+        pill.tintColor = ZUIColor.inkSoft(trait)
+        titleLabel.textColor = ZUIColor.ink(trait)
+    }
+
+    func configure(mode: Mode, title: String, provider: String, model: String, thought: String, connected: Bool) {
+        let isHome = mode == .home
+        menuButton.isHidden = !isHome
+        backButton.isHidden = isHome
+        titleLabel.isHidden = isHome
+        titleLabel.text = title
+        let shortModel = model.count > 12 ? String(model.prefix(12)) + "…" : model
+        let pillText = NSAttributedString(string: " \(shortModel) · \(thought) ", attributes: [
+            .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
+        ])
+        pill.setAttributedTitle(pillText, for: .normal)
+        pill.isEnabled = connected
+        pill.alpha = connected ? 1 : 0.45
+        applyColors()
+    }
+
+    @objc private func tapMenu() { onMenu?() }
+    @objc private func tapBack() { onBack?() }
+    @objc private func tapPill() { onPill?() }
     @objc private func tapNew() { onNew?() }
 }
 
-final class ConnectEmptyView: UIView {
-    var onScan: (() -> Void)?
-    var onAlbum: (() -> Void)?
-    var onPaste: (() -> Void)?
+// MARK: - 空状态
 
-    private let title = UILabel()
-    private let subtitle = UILabel()
-    private let scan = UIButton(type: .system)
-    private let album = UIButton(type: .system)
-    private let paste = UIButton(type: .system)
+final class ChatEmptyView: UIView {
+    private let logo = UILabel()
+    private let greeting = UILabel()
+    private let sub = UILabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        title.translatesAutoresizingMaskIntoConstraints = false
-        title.text = "连接电脑上的 ZCode"
-        title.font = .systemFont(ofSize: 22, weight: .semibold)
-        title.textColor = ZUIColor.ink
-        title.textAlignment = .center
+        logo.translatesAutoresizingMaskIntoConstraints = false
+        logo.text = "Z"
+        logo.textColor = .white
+        logo.font = .systemFont(ofSize: 34, weight: .heavy)
+        logo.textAlignment = .center
+        logo.backgroundColor = ZUIColor.ink(UITraitCollection.current)
+        logo.layer.cornerRadius = 24
+        logo.clipsToBounds = true
 
-        subtitle.translatesAutoresizingMaskIntoConstraints = false
-        subtitle.text = "扫描桌面端「移动端远程控制」二维码，或粘贴复制出来的地址。"
-        subtitle.font = .systemFont(ofSize: 14)
-        subtitle.textColor = ZUIColor.ink.withAlphaComponent(0.55)
-        subtitle.numberOfLines = 0
-        subtitle.textAlignment = .center
+        greeting.translatesAutoresizingMaskIntoConstraints = false
+        greeting.font = .systemFont(ofSize: 21, weight: .bold)
+        greeting.textAlignment = .center
+        greeting.numberOfLines = 0
 
-        func pill(_ button: UIButton, title: String, filled: Bool) {
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.setTitle(title, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
-            button.layer.cornerRadius = 22
-            button.layer.cornerCurve = .continuous
-            button.heightAnchor.constraint(equalToConstant: 48).isActive = true
-            if filled {
-                button.backgroundColor = ZUIColor.accent
-                button.setTitleColor(.white, for: .normal)
-            } else {
-                button.backgroundColor = UIColor.white.withAlphaComponent(0.72)
-                button.setTitleColor(ZUIColor.ink, for: .normal)
-            }
-        }
-        pill(scan, title: "扫描二维码连接", filled: true)
-        pill(album, title: "相册导入", filled: false)
-        pill(paste, title: "粘贴远控地址", filled: false)
-        scan.addTarget(self, action: #selector(tapScan), for: .touchUpInside)
-        album.addTarget(self, action: #selector(tapAlbum), for: .touchUpInside)
-        paste.addTarget(self, action: #selector(tapPaste), for: .touchUpInside)
+        sub.translatesAutoresizingMaskIntoConstraints = false
+        sub.font = .systemFont(ofSize: 12.5)
+        sub.textColor = ZUIColor.inkSoft(UITraitCollection.current)
+        sub.textAlignment = .center
 
-        let stack = UIStackView(arrangedSubviews: [title, subtitle, scan, album, paste])
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.axis = .vertical
-        stack.spacing = 12
-        stack.setCustomSpacing(18, after: subtitle)
-        addSubview(stack)
+        addSubview(logo)
+        addSubview(greeting)
+        addSubview(sub)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 32),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -32),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -24)
+            logo.centerXAnchor.constraint(equalTo: centerXAnchor),
+            logo.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -58),
+            logo.widthAnchor.constraint(equalToConstant: 76),
+            logo.heightAnchor.constraint(equalToConstant: 76),
+            greeting.topAnchor.constraint(equalTo: logo.bottomAnchor, constant: 22),
+            greeting.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 32),
+            greeting.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -32),
+            sub.topAnchor.constraint(equalTo: greeting.bottomAnchor, constant: 10),
+            sub.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 32),
+            sub.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -32)
         ])
+        applyColors()
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(connection: ConnectionState, error: String?) {
-        switch connection {
-        case .connecting:
-            subtitle.text = "正在连接桌面端…"
-        case .waiting:
-            subtitle.text = "已扫码，正在等待电脑上的 ZCode 配对。保持桌面端远控页面开着。"
-        case .offline(let message):
-            subtitle.text = error ?? message
-        default:
-            subtitle.text = error ?? "扫描桌面端「移动端远程控制」二维码，或粘贴复制出来的地址。"
-        }
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyColors()
     }
 
-    @objc private func tapScan() { onScan?() }
-    @objc private func tapAlbum() { onAlbum?() }
-    @objc private func tapPaste() { onPaste?() }
+    private func applyColors() {
+        let trait = traitCollection
+        logo.backgroundColor = ZUIColor.ink(trait)
+        greeting.textColor = ZUIColor.ink(trait)
+        sub.textColor = ZUIColor.inkSoft(trait)
+    }
+
+    func configure(device: String, workspace: String?, connected: Bool) {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let text: String
+        switch hour {
+        case 5..<11: text = "早上好，准备好开工了吗"
+        case 11..<13: text = "中午好，休息一下再继续"
+        case 13..<18: text = "下午好，今天要做点什么"
+        case 18..<23: text = "晚上好，今天想完成什么"
+        default: text = "夜深啦，别忘了照顾好自己哦"
+        }
+        greeting.text = text
+        let place = workspace?.split(separator: "\\").last.map(String.init) ?? workspace ?? ""
+        sub.text = connected ? "已连接 \(device)\(place.isEmpty ? "" : " · \(place)")" : "尚未连接桌面端"
+    }
 }
 
-final class BubbleCell: UITableViewCell {
-    static let id = "bubble"
+// MARK: - 用户气泡
+
+final class UserCell: UITableViewCell {
+    static let id = "user"
     private let bubble = UIView()
     private let label = UITextView()
+    private let meta = UILabel()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         backgroundColor = .clear
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        bubble.layer.cornerRadius = 20
+        bubble.layer.cornerRadius = 18
         bubble.layer.cornerCurve = .continuous
         label.translatesAutoresizingMaskIntoConstraints = false
         label.isEditable = false
         label.isScrollEnabled = false
         label.backgroundColor = .clear
-        label.textContainerInset = UIEdgeInsets(top: 2, left: 0, bottom: 2, right: 0)
+        label.textContainerInset = .zero
         label.textContainer.lineFragmentPadding = 0
+        meta.translatesAutoresizingMaskIntoConstraints = false
+        meta.font = .systemFont(ofSize: 11.5)
+        meta.textColor = ZUIColor.inkFaint(UITraitCollection.current)
+
         contentView.addSubview(bubble)
         bubble.addSubview(label)
+        contentView.addSubview(meta)
         NSLayoutConstraint.activate([
-            bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 5),
-            bubble.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -5),
+            bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            bubble.bottomAnchor.constraint(equalTo: label.bottomAnchor, constant: 12),
             label.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 10),
-            label.bottomAnchor.constraint(equalTo: bubble.bottomAnchor, constant: -10),
             label.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 14),
-            label.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -14)
+            label.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -14),
+            bubble.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            bubble.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.78),
+            meta.topAnchor.constraint(equalTo: bubble.bottomAnchor, constant: 5),
+            meta.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            meta.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
         ])
-        leading = bubble.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
-        trailing = bubble.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
-        maxWidth = bubble.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.84)
-        leading.isActive = true
-        trailing.isActive = true
-        maxWidth.isActive = true
     }
-
-    private var leading: NSLayoutConstraint!
-    private var trailing: NSLayoutConstraint!
-    private var maxWidth: NSLayoutConstraint!
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(block: ChatBlock, user: Bool, trait: UITraitCollection) {
-        label.attributedText = MarkdownRenderer.attributed(from: block.text, trait: trait, user: user)
-        bubble.backgroundColor = user ? ZUIColor.userBubble : ZUIColor.assistantBubble(trait)
-        leading.isActive = !user
-        trailing.isActive = user
-        bubble.layer.maskedCorners = user
-            ? [.layerMinXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMinYCorner]
-            : [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner]
+    func configure(text: String, time: Int, trait: UITraitCollection) {
+        label.attributedText = MarkdownRenderer.attributed(from: text, trait: trait, user: false)
+        bubble.backgroundColor = ZUIColor.chip(trait)
+        meta.text = "复制   \(TimeFormat.clock(time))"
     }
 }
 
-final class ToolCell: UITableViewCell {
-    static let id = "tool"
-    private let chip = UILabel()
+// MARK: - 已工作折叠时间线
+
+final class WorkCell: UITableViewCell {
+    static let id = "work"
+    private var onToggleWork: (() -> Void)?
+    private var onToggleThinking: ((String) -> Void)?
+    private var workId = ""
+    private var itemIdByRow: [Int: String] = [:]
+    private var startMs = 0
+    private var endMs = 0
+    private var running = false
+    private var expanded = false
+
+    private let headerButton = UIButton(type: .system)
+    private let container = UIStackView()
+    private let chevron = UIImageView()
+    private let leftBar = UIView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         backgroundColor = .clear
-        chip.translatesAutoresizingMaskIntoConstraints = false
-        chip.font = .systemFont(ofSize: 13, weight: .semibold)
-        chip.textAlignment = .center
-        chip.layer.cornerRadius = 14
-        chip.layer.cornerCurve = .continuous
-        chip.clipsToBounds = true
-        contentView.addSubview(chip)
+        headerButton.translatesAutoresizingMaskIntoConstraints = false
+        headerButton.contentHorizontalAlignment = .left
+        headerButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 0)
+        headerButton.addTarget(self, action: #selector(tapHeader), for: .touchUpInside)
+
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.image = UIImage(systemName: "chevron.down")
+        chevron.tintColor = ZUIColor.inkFaint(UITraitCollection.current)
+        chevron.font = .systemFont(ofSize: 11, weight: .semibold)
+        chevron.contentMode = .scaleAspectFit
+
+        leftBar.translatesAutoresizingMaskIntoConstraints = false
+        leftBar.layer.cornerRadius = 1
+
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.axis = .vertical
+        container.spacing = 10
+        container.isLayoutMarginsRelativeArrangement = true
+        container.layoutMargins = UIEdgeInsets(top: 8, left: 14, bottom: 2, right: 4)
+
+        contentView.addSubview(headerButton)
+        contentView.addSubview(chevron)
+        contentView.addSubview(leftBar)
+        contentView.addSubview(container)
         NSLayoutConstraint.activate([
-            chip.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18),
-            chip.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
-            chip.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            chip.heightAnchor.constraint(equalToConstant: 28)
+            headerButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            headerButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            headerButton.heightAnchor.constraint(equalToConstant: 22),
+            chevron.centerYAnchor.constraint(equalTo: headerButton.centerYAnchor),
+            chevron.leadingAnchor.constraint(equalTo: headerButton.trailingAnchor, constant: 2),
+            chevron.widthAnchor.constraint(equalToConstant: 11),
+            chevron.heightAnchor.constraint(equalToConstant: 11),
+            leftBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 19),
+            leftBar.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            leftBar.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
+            leftBar.widthAnchor.constraint(equalToConstant: 2),
+            container.topAnchor.constraint(equalTo: headerButton.bottomAnchor, constant: 2),
+            container.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            container.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            container.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
         ])
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(_ block: ChatBlock, trait: UITraitCollection) {
-        let name = block.tool ?? "工具"
-        let status = block.status == "running" ? "进行中" : "完成"
-        chip.text = "  \(name) · \(status)  "
-        chip.textColor = ZUIColor.ink(trait)
-        chip.backgroundColor = ZUIColor.creamCard(trait)
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        let trait = traitCollection
+        headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
+        chevron.tintColor = ZUIColor.inkFaint(trait)
+        leftBar.backgroundColor = ZUIColor.line(trait)
+    }
+
+    func configure(
+        id: String,
+        items: [WorkItem],
+        startMs: Int,
+        endMs: Int,
+        running: Bool,
+        expanded: Bool,
+        expandedThinkings: Set<String>,
+        trait: UITraitCollection,
+        onToggleWork: @escaping () -> Void,
+        onToggleThinking: @escaping (String) -> Void
+    ) {
+        self.workId = id
+        self.startMs = startMs
+        self.endMs = endMs
+        self.running = running
+        self.expanded = expanded
+        self.onToggleWork = onToggleWork
+        self.onToggleThinking = onToggleThinking
+
+        headerButton.setTitle("已工作 \(durationText())", for: .normal)
+        headerButton.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
+        headerButton.titleLabel?.font = .systemFont(ofSize: 13)
+        chevron.image = UIImage(systemName: expanded ? "chevron.up" : "chevron.down")
+        container.isHidden = !expanded
+
+        container.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        guard expanded else { return }
+
+        for item in items {
+            switch item.kind {
+            case .thinking:
+                container.addArrangedSubview(makeThinkingRow(item, expanded: expandedThinkings.contains(item.id), trait: trait))
+            case .skill:
+                container.addArrangedSubview(makeIconRow(
+                    symbol: "wand.and.stars",
+                    parts: [("技能 ", ZUIColor.inkSoft(trait), false), (item.title.replacingOccurrences(of: "技能 ", with: ""), ZUIColor.accent(trait), false)],
+                    trait: trait
+                ))
+            case .read:
+                container.addArrangedSubview(makeIconRow(
+                    symbol: "magnifyingglass",
+                    parts: [("读取 ", ZUIColor.inkSoft(trait), false), (item.title.replacingOccurrences(of: "读取 ", with: ""), ZUIColor.accent(trait), false)],
+                    trait: trait
+                ))
+            case .terminal:
+                container.addArrangedSubview(makeTerminalRow(item.detail, trait: trait))
+            case .text:
+                container.addArrangedSubview(makePlainRow(item.detail, trait: trait))
+            }
+        }
+    }
+
+    func refreshDurationIfVisible() {
+        headerButton.setTitle("已工作 \(durationText())", for: .normal)
+    }
+
+    private func durationText() -> String {
+        if running {
+            let seconds = Int(Date().timeIntervalSince1970 * 1000) - startMs
+            return TimeFormat.duration(seconds: max(1, seconds / 1000))
+        }
+        let seconds = max(1, (endMs - startMs) / 1000)
+        return TimeFormat.duration(seconds: seconds)
+    }
+
+    @objc private func tapHeader() { onToggleWork?() }
+
+    private func makeThinkingRow(_ item: WorkItem, expanded: Bool, trait: UITraitCollection) -> UIView {
+        let wrap = UIView()
+        wrap.translatesAutoresizingMaskIntoConstraints = false
+
+        let head = UIButton(type: .system)
+        head.translatesAutoresizingMaskIntoConstraints = false
+        head.contentHorizontalAlignment = .left
+        head.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 0)
+        head.setTitle("思考 · 持续了几秒", for: .normal)
+        head.setTitleColor(ZUIColor.inkSoft(trait), for: .normal)
+        head.titleLabel?.font = .systemFont(ofSize: 12.5)
+        let icon = UIImageView(image: UIImage(systemName: "brain.head.profile"))
+        icon.tintColor = ZUIColor.inkSoft(trait)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.contentMode = .scaleAspectFit
+        let arrow = UIImageView(image: UIImage(systemName: expanded ? "chevron.up" : "chevron.down"))
+        arrow.tintColor = ZUIColor.inkFaint(trait)
+        arrow.translatesAutoresizingMaskIntoConstraints = false
+        arrow.contentMode = .scaleAspectFit
+
+        let body = UILabel()
+        body.translatesAutoresizingMaskIntoConstraints = false
+        body.font = .systemFont(ofSize: 13)
+        body.textColor = ZUIColor.inkSoft(trait)
+        body.numberOfLines = 0
+        body.text = item.detail
+        body.isHidden = !expanded
+
+        wrap.addSubview(icon)
+        wrap.addSubview(head)
+        wrap.addSubview(arrow)
+        wrap.addSubview(body)
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            icon.centerYAnchor.constraint(equalTo: head.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 14),
+            icon.heightAnchor.constraint(equalToConstant: 14),
+            head.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            head.topAnchor.constraint(equalTo: wrap.topAnchor),
+            head.heightAnchor.constraint(equalToConstant: 20),
+            head.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor),
+            arrow.leadingAnchor.constraint(equalTo: head.trailingAnchor, constant: 4),
+            arrow.centerYAnchor.constraint(equalTo: head.centerYAnchor),
+            arrow.widthAnchor.constraint(equalToConstant: 10),
+            arrow.heightAnchor.constraint(equalToConstant: 10),
+            body.topAnchor.constraint(equalTo: head.bottomAnchor, constant: 4),
+            body.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            body.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
+            body.bottomAnchor.constraint(equalTo: wrap.bottomAnchor)
+        ])
+        let tap = UITapGestureRecognizer()
+        tap.addAction(UIAction { [weak self] _ in
+            self?.onToggleThinking?(item.id)
+        })
+        head.addGestureRecognizer(tap)
+        return wrap
+    }
+
+    private func makeIconRow(symbol: String, parts: [(String, UIColor, Bool)], trait: UITraitCollection) -> UIView {
+        let row = UIStackView()
+        row.axis = .horizontal
+        row.spacing = 6
+        row.alignment = .center
+        let icon = UIImageView(image: UIImage(systemName: symbol))
+        icon.tintColor = ZUIColor.inkSoft(trait)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.contentMode = .scaleAspectFit
+        icon.widthAnchor.constraint(equalToConstant: 14).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 14).isActive = true
+        row.addArrangedSubview(icon)
+        for (text, color, mono) in parts {
+            let label = UILabel()
+            label.text = text
+            label.textColor = color
+            label.font = mono
+                ? .monospacedSystemFont(ofSize: 12.5, weight: .regular)
+                : .systemFont(ofSize: 12.5)
+            label.numberOfLines = 1
+            row.addArrangedSubview(label)
+        }
+        return row
+    }
+
+    private func makeTerminalRow(_ command: String, trait: UITraitCollection) -> UIView {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+        label.textColor = ZUIColor.inkSoft(trait)
+        label.text = command
+        label.numberOfLines = 1
+        let box = UIView()
+        box.translatesAutoresizingMaskIntoConstraints = false
+        box.backgroundColor = ZUIColor.surface(trait)
+        box.layer.cornerRadius = 8
+        box.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: box.topAnchor, constant: 7),
+            label.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -7),
+            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 9),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: box.trailingAnchor, constant: -9)
+        ])
+        return box
+    }
+
+    private func makePlainRow(_ text: String, trait: UITraitCollection) -> UIView {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 13)
+        label.textColor = ZUIColor.inkSoft(trait)
+        label.numberOfLines = 3
+        label.text = text
+        return label
+    }
+}
+
+// MARK: - 正文
+
+final class BodyCell: UITableViewCell {
+    static let id = "body"
+    private let label = UITextView()
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .none
+        backgroundColor = .clear
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.isEditable = false
+        label.isScrollEnabled = false
+        label.backgroundColor = .clear
+        label.textContainerInset = .zero
+        label.textContainer.lineFragmentPadding = 0
+        contentView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
+        ])
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+    }
+
+    func configure(markdown: String, trait: UITraitCollection) {
+        label.attributedText = MarkdownRenderer.attributed(from: markdown, trait: trait, user: false)
     }
 }

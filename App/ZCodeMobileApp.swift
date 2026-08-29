@@ -3,30 +3,28 @@ import UserNotifications
 
 @main
 struct ZCodeMobileApp: App {
-    @StateObject private var settings = AppSettings()
+    @StateObject private var app = AppState.shared
     @Environment(\.scenePhase) private var scenePhase
     private let notifyDelegate = NotificationDelegate()
 
     var body: some Scene {
         WindowGroup {
-            RootView(settings: settings)
+            RootView(app: app)
                 .onAppear {
                     UNUserNotificationCenter.current().delegate = notifyDelegate
                     LocalNotify.request()
+                    app.connectSavedLinkIfNeeded()
                 }
                 .onChange(of: scenePhase) { phase in
                     switch phase {
                     case .active:
                         UIApplication.shared.applicationIconBadgeNumber = 0
-                        // 前台：网页自己持连接，停掉原生监控避免互踢。
-                        MonitorController.shared.stop()
                         SilentAudio.shared.stop()
                     case .background:
-                        if settings.keepAlive {
+                        // 原生连接前后台是同一条，不需要交接；保活只为 iOS 不杀进程。
+                        if app.settings.keepAlive {
                             SilentAudio.shared.start()
                         }
-                        // 延迟 2.5s：先让官方网页的 WebSocket 优雅断开，监控再接管，网页就不会被踢。
-                        MonitorController.shared.scheduleStart(after: 2.5)
                     default:
                         break
                     }

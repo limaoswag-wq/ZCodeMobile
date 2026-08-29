@@ -2,119 +2,123 @@ import SwiftUI
 import UIKit
 
 struct RootView: View {
-    @ObservedObject var settings: AppSettings
-    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject var app: AppState
     @State private var showSettings = false
     @State private var showScanner = false
-    @State private var reloadToken = 0
-    @State private var recoverToken = 0
-
-    private var activeLink: OfficialLink? {
-        OfficialLinkParser.parse(settings.officialURL)
-    }
+    @State private var showSidebar = false
+    @State private var showModelMenu = false
+    @State private var showAttach = false
 
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
-            if let link = activeLink, let url = URL(string: settings.officialURL) {
-                RemoteWebView(url: url, reloadToken: $reloadToken, recoverToken: $recoverToken)
-                floatingControls(link: link)
+            ZTheme.canvas.ignoresSafeArea()
+            if app.hasLink {
+                ChatHost(
+                    app: app,
+                    onOpenSidebar: { showSidebar = true },
+                    onBack: {
+                        app.startNewChat()
+                    },
+                    onOpenModelMenu: {
+                        app.fetchProviders()
+                        showModelMenu = true
+                    },
+                    onNewChat: {
+                        app.startNewChat()
+                    },
+                    onOpenAttach: { showAttach = true }
+                )
+                .ignoresSafeArea(.keyboard, edges: .bottom)
             } else {
-                ConnectView(
-                    settings: settings,
+                ConnectView(app: app, onScan: { showScanner = true })
+            }
+
+            if let toast = app.toast, !toast.isEmpty {
+                VStack {
+                    Spacer()
+                    Text(toast)
+                        .font(.footnote)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.75), in: Capsule())
+                        .padding(.bottom, 110)
+                }
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+        }
+        .overlay {
+            if showSidebar, app.hasLink {
+                SideBarDim(showSidebar: $showSidebar)
+                SidebarDrawer(
+                    app: app,
+                    isShown: $showSidebar,
                     onScan: { showScanner = true },
-                    onAlbum: { showScanner = true }
+                    onSettings: { showSettings = true }
                 )
             }
         }
-        .onChange(of: scenePhase) { phase in
-            if phase == .active, activeLink != nil {
-                // 回前台：监控已停，检查页面是否被踢，被踢就自动刷新重连。
-                recoverToken += 1
-            }
-        }
+        .animation(.easeOut(duration: 0.22), value: showSidebar)
         .sheet(isPresented: $showScanner) {
             QRScannerHost(
                 onScan: { value in
                     showScanner = false
-                    connect(from: value)
+                    app.connect(from: value.trimmingCharacters(in: .whitespacesAndNewlines))
                 },
                 onCancel: { showScanner = false }
             )
             .ignoresSafeArea()
         }
         .sheet(isPresented: $showSettings) {
-            SettingsSheet(settings: settings, onReload: {
-                reloadToken += 1
-            })
+            SettingsSheet(app: app)
         }
-    }
-
-    /// 网页右上角旁的小齿轮，用来打开设置；不遮官方控件主区域。
-    private func floatingControls(link: OfficialLink) -> some View {
-        VStack {
-            HStack {
-                Spacer()
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 30, height: 30)
-                        .background(.thinMaterial, in: Circle())
-                }
-                .padding(.trailing, 66)
-                .padding(.top, 2)
-            }
-            Spacer()
+        .sheet(isPresented: $showModelMenu) {
+            ModelMenuSheet(app: app)
         }
-    }
-
-    private func connect(from raw: String) {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let link = OfficialLinkParser.parse(trimmed) else {
-            ConnectPasteError.shared.message = "这不是 ZCode 远控链接，请扫描电脑端二维码或粘贴完整链接。"
-            return
+        .sheet(isPresented: $showAttach) {
+            AttachSheet()
         }
-        settings.officialURL = trimmed
-        MonitorController.shared.stop()
     }
 }
 
-enum ConnectPasteError {
-    static let shared = PasteErrorBox()
+private struct SideBarDim: View {
+    @Binding var showSidebar: Bool
+
+    var body: some View {
+        Color.black.opacity(0.38)
+            .ignoresSafeArea()
+            .onTapGesture { showSidebar = false }
+            .transition(.opacity)
+    }
 }
 
-final class PasteErrorBox: ObservableObject {
-    @Published var message: String?
-}
+// MARK: - 连接页（冷色极简）
 
 struct ConnectView: View {
-    @ObservedObject var settings: AppSettings
+    @ObservedObject var app: AppState
     var onScan: () -> Void
-    var onAlbum: () -> Void
     @State private var paste = ""
-    @StateObject private var errorBox = ConnectPasteError.shared
+    @State private var errorText: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 24)
-            Image(systemName: "terminal.fill")
-                .font(.system(size: 26, weight: .medium))
-                .foregroundStyle(Color.white)
-                .frame(width: 72, height: 72)
-                .background(Color(.label), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            Spacer(minLength: 20)
+            Text("Z")
+                .font(.system(size: 34, weight: .heavy))
+                .foregroundStyle(.white)
+                .frame(width: 76, height: 76)
+                .background(ZTheme.ink, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             Text("ZCode 远程控制")
-                .font(.system(size: 22, weight: .semibold))
-                .padding(.top, 18)
-            Text("扫描电脑端「移动端远程控制」二维码，或粘贴复制的链接。连接后就是官方原版界面；退到后台会自动监控任务并发通知。")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 21, weight: .bold))
+                .padding(.top, 20)
+            Text("扫描电脑端「移动端远程控制」二维码，或粘贴复制的链接。连接后就是原生界面，任务完成会弹通知。")
+                .font(.system(size: 13.5))
+                .foregroundStyle(ZTheme.inkSoft)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
-                .padding(.horizontal, 32)
-            Spacer(minLength: 12)
+                .padding(.horizontal, 34)
+            Spacer(minLength: 10)
 
             VStack(spacing: 12) {
                 Button(action: onScan) {
@@ -122,14 +126,7 @@ struct ConnectView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                Button(action: onAlbum) {
-                    Label("从相册识别", systemImage: "photo.on.rectangle")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(ZTheme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 HStack(spacing: 10) {
                     TextField("https://zcode.z.ai/remote/v4?sid=…", text: $paste)
@@ -141,72 +138,372 @@ struct ConnectView: View {
                     Button("连接") {
                         let trimmed = paste.trimmingCharacters(in: .whitespacesAndNewlines)
                         if OfficialLinkParser.parse(trimmed) != nil {
-                            errorBox.message = nil
-                            settings.officialURL = trimmed
+                            errorText = nil
+                            app.connect(from: trimmed)
                         } else {
-                            errorBox.message = "这不是 ZCode 远控链接，请检查后重试。"
+                            errorText = "这不是 ZCode 远控链接，请检查后重试。"
                         }
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                if let message = errorBox.message, !message.isEmpty {
-                    Text(message)
+                if let errorText, !errorText.isEmpty {
+                    Text(errorText)
                         .font(.footnote)
-                        .foregroundStyle(.orange)
-                        .multilineTextAlignment(.center)
+                        .foregroundStyle(ZTheme.danger)
                 }
             }
             .padding(.horizontal, 24)
 
-            Spacer(minLength: 24)
-            Text("任务完成或出错时会弹系统通知；Bark 推送可在设置里打开。")
+            Spacer(minLength: 16)
+            Text("Bark 推送可在连接后的设置里打开。")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .padding(.bottom, 16)
+                .foregroundStyle(ZTheme.inkFaint)
+                .padding(.bottom, 18)
         }
-        .onAppear {
-            paste = settings.officialURL
-        }
+        .onAppear { paste = app.settings.officialURL }
     }
 }
 
-struct SettingsSheet: View {
-    @ObservedObject var settings: AppSettings
-    var onReload: () -> Void
+// MARK: - 聊天宿主
+
+struct ChatHost: UIViewControllerRepresentable {
+    @ObservedObject var app: AppState
+    var onOpenSidebar: () -> Void
+    var onBack: () -> Void
+    var onOpenModelMenu: () -> Void
+    var onNewChat: () -> Void
+    var onOpenAttach: () -> Void
+
+    func makeUIViewController(context: Context) -> ChatViewController {
+        let controller = ChatViewController()
+        controller.app = app
+        controller.onOpenSidebar = onOpenSidebar
+        controller.onBack = onBack
+        controller.onOpenModelMenu = onOpenModelMenu
+        controller.onNewChat = onNewChat
+        controller.onOpenAttach = onOpenAttach
+        context.coordinator.controller = controller
+        return controller
+    }
+
+    func updateUIViewController(_ controller: ChatViewController, context: Context) {
+        controller.app = app
+        controller.onOpenSidebar = onOpenSidebar
+        controller.onBack = onBack
+        controller.onOpenModelMenu = onOpenModelMenu
+        controller.onNewChat = onNewChat
+        controller.onOpenAttach = onOpenAttach
+        controller.reloadFromApp()
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var controller: ChatViewController?
+    }
+}
+
+// MARK: - 侧边栏
+
+struct SidebarDrawer: View {
+    @ObservedObject var app: AppState
+    @Binding var isShown: Bool
+    var onScan: () -> Void
+    var onSettings: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            drawer
+                .frame(width: 300)
+                .background(ZTheme.canvas)
+                .clipShape(UnevenRoundedRectangle(topRightRadius: 26, bottomRightRadius: 26))
+                .shadow(color: .black.opacity(0.18), radius: 24, x: 6, y: 0)
+            Spacer(minWidth: 0)
+        }
+        .transition(.move(edge: .leading))
+    }
+
+    private var pinned: [TaskSummary] { app.tasks.filter(\.pinned) }
+    private var history: [TaskSummary] { app.tasks.filter { !$0.pinned } }
+
+    private var drawer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Text("R")
+                    .font(.system(size: 17, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(ZTheme.accent, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(app.deviceName)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(ZTheme.ink)
+                    HStack(spacing: 5) {
+                        Circle().fill(app.connection.isConnected ? ZTheme.ok : ZTheme.danger).frame(width: 7, height: 7)
+                        Text(app.connection.label)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(ZTheme.inkSoft)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
+
+            Button {
+                app.startNewChat()
+                isShown = false
+            } label: {
+                Label("新对话", systemImage: "plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZTheme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 42)
+                    .background(ZTheme.accentWeak, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            }
+            .padding(.horizontal, 14)
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !pinned.isEmpty {
+                        sectionTitle("已置顶")
+                        ForEach(pinned) { task in
+                            taskRow(task)
+                        }
+                    }
+                    sectionTitle("历史会话")
+                    if history.isEmpty {
+                        Text(app.connection.isConnected ? "还没有任务" : "连接后再看任务")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(ZTheme.inkFaint)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 6)
+                    }
+                    ForEach(history) { task in
+                        taskRow(task)
+                    }
+                }
+                .padding(.top, 4)
+            }
+
+            HStack(spacing: 10) {
+                drawerButton("扫码连接", symbol: "qrcode.viewfinder") {
+                    isShown = false
+                    app.disconnect()
+                    onScan()
+                }
+                drawerButton("设置", symbol: "gearshape") {
+                    isShown = false
+                    onSettings()
+                }
+            }
+            .padding(14)
+        }
+        .padding(.top, 44)
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11.5, weight: .semibold))
+            .foregroundStyle(ZTheme.inkFaint)
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+    }
+
+    private func taskRow(_ task: TaskSummary) -> some View {
+        let badge = ZTheme.statusBadge(task.status)
+        return Button {
+            app.openTask(task.id)
+            isShown = false
+        } label: {
+            HStack(spacing: 8) {
+                Text(task.title.isEmpty ? "未命名任务" : task.title)
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(ZTheme.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                if !task.title.isEmpty {
+                    Text(TimeFormat.relative(task.updatedAt))
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZTheme.inkFaint)
+                }
+                Text(badge.text)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(badge.fg)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(badge.bg, in: Capsule())
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(task.id == app.activeTaskId ? ZTheme.surface : .clear,
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
+        .buttonStyle(PressScaleStyle())
+        .padding(.horizontal, 8)
+    }
+
+    private func drawerButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ZTheme.ink)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(ZTheme.chip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(PressScaleStyle())
+    }
+}
+
+// MARK: - 模型菜单
+
+struct ModelMenuSheet: View {
+    @ObservedObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var thoughtLevels: [String] = ["低", "中", "高", "极高"]
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if app.providers.isEmpty {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("正在获取模型列表…")
+                            .font(.footnote)
+                            .foregroundStyle(ZTheme.inkSoft)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(app.providers) { provider in
+                            Section(provider.name) {
+                                ForEach(provider.models) { model in
+                                    Button {
+                                        app.switchModel(providerId: provider.id, modelId: model.id, thought: app.selectedThought)
+                                        dismiss()
+                                    } label: {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(model.name)
+                                                    .font(.system(size: 14.5, weight: .semibold))
+                                                    .foregroundStyle(ZTheme.ink)
+                                            }
+                                            Spacer()
+                                            if provider.id == app.selectedProviderId && model.id == app.selectedModelId {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundStyle(ZTheme.accent)
+                                                    .font(.system(size: 14, weight: .semibold))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Section("思考等级") {
+                            ForEach(thoughtLevels, id: \.self) { level in
+                                Button {
+                                    if let provider = app.providers.first(where: { $0.id == app.selectedProviderId }) {
+                                        app.switchModel(providerId: provider.id, modelId: app.selectedModelId, thought: level)
+                                    }
+                                    dismiss()
+                                } label: {
+                                    HStack {
+                                        Text(level)
+                                            .font(.system(size: 14.5, weight: .semibold))
+                                            .foregroundStyle(ZTheme.ink)
+                                        Spacer()
+                                        if level == app.selectedThought {
+                                            Image(systemName: "checkmark")
+                                                .foregroundStyle(ZTheme.accent)
+                                                .font(.system(size: 14, weight: .semibold))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("模型与思考")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - 附件面板
+
+struct AttachSheet: View {
     @Environment(\.dismiss) private var dismiss
 
-    private var link: OfficialLink? { OfficialLinkParser.parse(settings.officialURL) }
+    var body: some View {
+        VStack(spacing: 18) {
+            Capsule()
+                .fill(ZTheme.line)
+                .frame(width: 40, height: 5)
+                .padding(.top, 10)
+            HStack(spacing: 12) {
+                attachCell("拍照", symbol: "camera")
+                attachCell("照片", symbol: "photo")
+                attachCell("文件", symbol: "doc")
+            }
+            Text("附件上传将在下个版本支持，当前版本先出文字对话。")
+                .font(.caption)
+                .foregroundStyle(ZTheme.inkFaint)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .presentationDetents([.height(240)])
+    }
+
+    private func attachCell(_ title: String, symbol: String) -> some View {
+        VStack(spacing: 9) {
+            Image(systemName: symbol)
+                .font(.system(size: 22))
+                .foregroundStyle(ZTheme.ink)
+            Text(title)
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(ZTheme.ink)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(ZTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .opacity(0.55)
+    }
+}
+
+// MARK: - 设置
+
+struct SettingsSheet: View {
+    @ObservedObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    LabeledContent("设备", value: link?.deviceName ?? "未知")
-                    LabeledContent("地址", value: String(settings.officialURL.prefix(48)) + "…")
-                        .font(.footnote)
-                    Button {
-                        onReload()
-                        dismiss()
-                    } label: {
-                        Label("刷新网页", systemImage: "arrow.clockwise")
-                    }
+                    LabeledContent("设备", value: app.deviceName)
+                    LabeledContent("状态", value: app.connection.label)
                     Button(role: .destructive) {
-                        settings.officialURL = ""
-                        MonitorController.shared.stop()
+                        app.disconnect()
                         dismiss()
                     } label: {
                         Label("断开连接，重新扫码", systemImage: "link.badge.plus")
                     }
                 } header: {
                     Text("连接")
-                } footer: {
-                    Text("前台由官方网页保持连接；退到后台后由 App 接管监控，回前台网页自动重连。")
                 }
 
                 Section {
-                    Toggle("Bark 推送", isOn: $settings.barkEnabled)
-                    if settings.barkEnabled {
-                        TextField("https://api.day.app/你的Key", text: $settings.barkURL)
+                    Toggle("Bark 推送", isOn: $app.settings.barkEnabled)
+                    if app.settings.barkEnabled {
+                        TextField("https://api.day.app/你的Key", text: $app.settings.barkURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -214,19 +511,19 @@ struct SettingsSheet: View {
                 } header: {
                     Text("通知")
                 } footer: {
-                    Text("任务完成/出错默认弹 App 通知；打开 Bark 后会同时推送到你的 iPhone Bark。")
+                    Text("任务完成/出错弹 App 通知；打开 Bark 会同时推送到手机 Bark。")
                 }
 
                 Section {
-                    Toggle("后台保活（静音播放）", isOn: $settings.keepAlive)
+                    Toggle("后台保活（静音播放）", isOn: $app.settings.keepAlive)
                 } header: {
                     Text("后台")
                 } footer: {
-                    Text("退到后台时静音播放保持进程存活，通知才可靠。锁屏后若不弹通知，回 app 检查这个开关。")
+                    Text("退到后台时静音播放保持通知可靠。")
                 }
 
                 Section {
-                    LabeledContent("版本", value: "1.1.1")
+                    LabeledContent("版本", value: "1.2.0")
                 }
             }
             .navigationTitle("设置")
@@ -239,4 +536,8 @@ struct SettingsSheet: View {
         }
         .presentationDetents([.medium, .large])
     }
+}
+
+extension Notification.Name {
+    static let zcodeOpenSettings = Notification.Name("zcode.openSettings")
 }

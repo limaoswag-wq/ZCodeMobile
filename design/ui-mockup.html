@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZCode Native · UI 设计稿 v1</title>
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f7f7f8; --ink:#171719; --ink2:#8a8f98; --ink3:#b3b8c2;
+    --accent:#2f6bff; --accent-weak:#eaf0ff; --border:#ececee; --chip:#f2f3f5;
+    --ok:#22a06b; --ok-bg:#e8f6ef; --warn:#e5484d; --warn-bg:#fdebec;
+    --run:#2f6bff; --run-bg:#eaf0ff;
+    --dk-bg:#111214; --dk-card:#1c1d21; --dk-chip:#232428; --dk-border:#2a2b30; --dk-ink:#f2f3f5;
+  }
+  *{box-sizing:border-box; margin:0}
+  body{background:#0e0f12; color:#e8e9ec; font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif; padding:28px 24px 60px;}
+  h1{font-size:20px; font-weight:700}
+  .sub{color:#9aa0aa; font-size:13px; margin:6px 0 18px}
+  .spec{display:flex; gap:18px; flex-wrap:wrap; background:#17181c; border:1px solid #26272c; border-radius:14px; padding:14px 16px; margin-bottom:26px; font-size:12px; color:#aab0ba}
+  .sw{display:inline-flex; align-items:center; gap:6px; margin-right:14px}
+  .dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+  .row{display:flex; gap:34px; flex-wrap:wrap; align-items:flex-start}
+  figure{width:375px}
+  figcaption{font-size:13px; font-weight:700; margin:0 0 4px 2px; color:#fff}
+  .note{font-size:11.5px; color:#8b919c; margin:0 0 10px 2px; line-height:1.5}
+  .phone{width:375px; height:812px; background:var(--bg); border:10px solid #1b1c20; border-radius:54px; position:relative; overflow:hidden; color:var(--ink); box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .phone.dark{background:var(--dk-bg); color:var(--dk-ink)}
+  .statusbar{position:absolute; top:0; left:0; right:0; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 26px; font-size:14px; font-weight:600; z-index:5}
+  .statusbar .right{display:flex; gap:5px; align-items:center}
+  .homebar{position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:134px; height:5px; border-radius:3px; background:var(--ink); opacity:.9; z-index:9}
+  .phone.dark .homebar{background:var(--dk-ink)}
+  /* top bar */
+  .topbar{position:absolute; top:44px; left:0; right:0; height:56px; display:flex; align-items:center; gap:10px; padding:0 16px; z-index:4}
+  .iconbtn{width:36px;height:36px;border-radius:12px;background:var(--chip); display:flex;align-items:center;justify-content:center; flex:none}
+  .phone.dark .iconbtn{background:var(--dk-chip)}
+  .pill{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:18px;background:var(--chip); font-size:13px; font-weight:600; color:var(--ink)}
+  .phone.dark .pill{background:var(--dk-chip)}
+  .pill .lv{color:var(--ink2); font-weight:500}
+  .spacer{flex:1}
+  /* greeting */
+  .center{position:absolute; top:0; bottom:0; left:0; right:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-bottom:210px}
+  .logo{width:76px;height:76px;border-radius:24px;background:linear-gradient(145deg,#2b2d33,#171719); color:#fff; display:flex;align-items:center;justify-content:center; font-size:34px; font-weight:800; box-shadow:0 10px 30px rgba(23,23,25,.25)}
+  .greet{margin-top:22px; font-size:21px; font-weight:700; text-align:center; line-height:1.4}
+  .greet-sub{margin-top:10px; font-size:12.5px; color:var(--ink2)}
+  /* chips */
+  .chips{position:absolute; left:0; right:0; bottom:132px; display:flex; gap:8px; padding:0 16px; overflow:hidden}
+  .chip{flex:none; display:flex; align-items:center; gap:6px; height:34px; padding:0 13px; border-radius:17px; background:var(--chip); font-size:13px; color:var(--ink)}
+  .phone.dark .chip{background:var(--dk-chip)}
+  /* composer */
+  .composer{position:absolute; left:10px; right:10px; bottom:26px; background:var(--bg); border:1px solid var(--border); border-radius:26px; box-shadow:0 8px 28px rgba(0,0,0,.07); padding:14px 14px 12px; z-index:6}
+  .phone.dark .composer{background:var(--dk-card); border-color:var(--dk-border)}
+  .composer .ph{font-size:15px; color:var(--ink3); padding:2px 4px 12px}
+  .composer .bar{display:flex; align-items:center; gap:10px}
+  .round{width:34px;height:34px;border-radius:50%;background:var(--chip); display:flex;align-items:center;justify-content:center}
+  .phone.dark .round{background:var(--dk-chip)}
+  .send{width:34px;height:34px;border-radius:50%;background:var(--accent); margin-left:auto; display:flex;align-items:center;justify-content:center}
+  /* chat */
+  .chat{position:absolute; top:100px; bottom:118px; left:0; right:0; overflow:hidden; padding:6px 16px 0}
+  .user-row{display:flex; justify-content:flex-end; margin:10px 0 4px}
+  .bubble-user{background:var(--chip); border-radius:18px 18px 6px 18px; padding:10px 14px; font-size:15px; max-width:76%; line-height:1.5}
+  .phone.dark .bubble-user{background:var(--dk-chip)}
+  .meta{display:flex; gap:10px; justify-content:flex-end; font-size:11.5px; color:var(--ink3); margin:4px 2px 10px}
+  .workrow{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink2); padding:9px 0; border-bottom:1px solid var(--border); margin-bottom:10px}
+  .phone.dark .workrow{border-color:var(--dk-border)}
+  .think{display:flex; align-items:center; gap:8px; background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:11px 12px; font-size:13.5px; color:var(--ink2); margin-bottom:12px}
+  .phone.dark .think{background:var(--dk-card); border-color:var(--dk-border)}
+  .para{font-size:15px; line-height:1.65; margin:2px 0 10px}
+  .tool{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink2); padding:5px 0}
+  .tool code{font-family:ui-monospace,Consolas,monospace; background:var(--bg2); padding:2px 7px; border-radius:7px; font-size:11.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:250px}
+  .phone.dark .tool code{background:var(--dk-chip)}
+  .actions{display:flex; gap:16px; align-items:center; color:var(--ink3); margin:6px 0 8px}
+  /* expanded timeline */
+  .tl{border-left:2px solid var(--border); margin:4px 0 10px 6px; padding-left:14px; display:flex; flex-direction:column; gap:9px}
+  .tl .t-head{font-size:12.5px; color:var(--ink2); display:flex; gap:6px; align-items:center}
+  .tl .t-body{font-size:13px; color:var(--ink2); line-height:1.6; font-style:italic}
+  .tl .t-cmd{font-family:ui-monospace,Consolas,monospace; font-size:11.5px; background:var(--bg2); border-radius:8px; padding:7px 9px; color:var(--ink2); overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .tl .t-link{font-size:12.5px; color:var(--accent)}
+  .badge{font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px}
+  .b-ok{background:var(--ok-bg); color:var(--ok)} .b-run{background:var(--run-bg); color:var(--run)} .b-err{background:var(--warn-bg); color:var(--warn)}
+  /* sidebar */
+  .dim{position:absolute; inset:0; background:rgba(0,0,0,.38); z-index:10}
+  .drawer{position:absolute; top:0; bottom:0; left:0; width:296px; background:var(--bg); z-index:11; border-radius:0 26px 26px 0; padding:60px 16px 24px; display:flex; flex-direction:column; gap:4px}
+  .phone.dark .drawer{background:var(--dk-card)}
+  .dev{display:flex; align-items:center; gap:10px; padding:4px 6px 12px; border-bottom:1px solid var(--border); margin-bottom:10px}
+  .phone.dark .dev{border-color:var(--dk-border)}
+  .dev .avatar{width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,#2f6bff,#1f4fd6); color:#fff; display:flex;align-items:center;justify-content:center; font-weight:800; font-size:17px}
+  .dev .name{font-size:15px; font-weight:700}
+  .dev .st{font-size:11.5px; color:var(--ink2); display:flex; align-items:center; gap:5px}
+  .gdot{width:7px;height:7px;border-radius:50%;background:var(--ok); display:inline-block}
+  .newchat{display:flex; align-items:center; justify-content:center; gap:7px; height:42px; border-radius:13px; background:var(--accent-weak); color:var(--accent); font-size:14px; font-weight:600; margin-bottom:12px}
+  .sec{font-size:11.5px; color:var(--ink3); font-weight:600; padding:8px 6px 4px}
+  .srow{display:flex; align-items:center; gap:9px; padding:9px 8px; border-radius:11px; font-size:13.5px}
+  .srow.on{background:var(--bg2)}
+  .phone.dark .srow.on{background:var(--dk-chip)}
+  .srow .t{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .srow .time{font-size:11px; color:var(--ink3)}
+  .foot{margin-top:auto; display:flex; gap:10px}
+  .foot .fbtn{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:40px; border-radius:12px; background:var(--chip); font-size:13px; font-weight:600}
+  .phone.dark .foot .fbtn{background:var(--dk-chip)}
+  /* popover */
+  .pop{position:absolute; z-index:12; background:var(--bg); border-radius:18px; box-shadow:0 18px 50px rgba(0,0,0,.22); border:1px solid var(--border); width:250px; padding:6px 0; left:58px; top:96px}
+  .phone.dark .pop{background:var(--dk-card); border-color:var(--dk-border)}
+  .pop .grp{font-size:11px; color:var(--ink3); padding:8px 16px 3px}
+  .prow{display:flex; align-items:center; gap:8px; padding:9px 16px}
+  .prow .pt{font-size:14px; font-weight:600}
+  .prow .pd{font-size:11.5px; color:var(--ink2); margin-top:1px}
+  .prow .ck{margin-left:auto; color:var(--accent)}
+  .pdiv{height:1px; background:var(--border); margin:5px 12px}
+  .phone.dark .pdiv{background:var(--dk-border)}
+  .sub2{left:200px; top:236px; width:150px}
+  /* sheet */
+  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:12; background:var(--bg); border-radius:24px 24px 0 0; padding:10px 16px 30px; box-shadow:0 -12px 40px rgba(0,0,0,.18)}
+  .phone.dark .sheet{background:var(--dk-card)}
+  .grab{width:40px;height:5px;border-radius:3px;background:var(--border); margin:2px auto 16px}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .cell{background:var(--bg2); border-radius:18px; padding:18px 0 14px; display:flex; flex-direction:column; align-items:center; gap:9px; font-size:13.5px; font-weight:600}
+  .phone.dark .cell{background:var(--dk-chip)}
+  svg{display:block}
+</style>
+</head>
+<body>
+<h1>ZCode Native · UI 设计稿 v1（路线 B · 冷色）</h1>
+<div class="sub">对标 Kimi 版式，保留 ZCode 网页全部信息。共 7 屏 + 规范条，均未写任何 App 代码，确认后才动手。</div>
+<div class="spec">
+  <span class="sw"><span class="dot" style="background:#171719"></span>主字 #171719</span>
+  <span class="sw"><span class="dot" style="background:#8a8f98"></span>次要 #8A8F98</span>
+  <span class="sw"><span class="dot" style="background:#2f6bff"></span>强调 #2F6BFF</span>
+  <span class="sw"><span class="dot" style="background:#f2f3f5"></span>气泡/胶囊 #F2F3F5</span>
+  <span class="sw"><span class="dot" style="background:#22a06b"></span>已完成</span>
+  <span class="sw"><span class="dot" style="background:#e5484d"></span>出错</span>
+  <span class="sw">圆角：卡 20 / 胶囊 999 / 输入卡 26</span>
+  <span class="sw">字体：SF Pro + PingFang，正文 15，标题 17–21</span>
+  <span class="sw">图标：官方同款 Lucide（brain / wand-sparkles / search / square-terminal），原生端打包同一套做模板渲染</span>
+</div>
+
+<!-- 官方同款图标（从 ZCode 网页 DOM 原样提取） -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5"></path><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"></path><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"></path><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"></path><path d="M18 18a4 4 0 0 0 2-7.464"></path><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"></path><path d="M6 18a4 4 0 0 1-2-7.464"></path><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"></path></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 2-2-2-2"></path><path d="M11 13h4"></path><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect></symbol>
+</svg>
+<style>.lic{width:14px;height:14px;flex:none;color:var(--ink2)}</style>
+
+<div class="row">
+
+<!-- ============ 1 首页 ============ -->
+<figure>
+<figcaption>① 首页 · 空会话</figcaption>
+<p class="note">Kimi 构图：左上 ☰（侧边栏）+ 模型胶囊（点开=屏⑤），右上新对话；中部 Logo+问候；底部输入卡。快捷胶囊已按反馈去掉。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="topbar">
+    <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke="#171719" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div class="pill">GLM-5.3-Flash <span class="lv">· 高思维</span> <svg width="9" height="9" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" stroke="#8a8f98" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="spacer"></div>
+    <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2v8m0-8L5 5m3-3l3 3" stroke="#171719" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9v3.5A1.5 1.5 0 004.5 14h7a1.5 1.5 0 001.5-1.5V9" stroke="#171719" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="center">
+    <div class="logo">Z</div>
+    <div class="greet">夜深啦，别忘了<br>照顾好自己哦</div>
+    <div class="greet-sub">已连接 R9000P · ZCodeProject</div>
+  </div>
+  <div class="composer">
+    <div class="ph">向 ZCode 提问…</div>
+    <div class="bar">
+      <div class="round"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#171719" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="send"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 12V2M7 2L2.8 6.2M7 2l4.2 4.2" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 2 对话页 ============ -->
+<figure>
+<figcaption>② 对话页 · 默认折叠</figcaption>
+<p class="note">用户消息右侧灰气泡；思考/技能/终端/读取等过程内容全部收进「已工作」折叠，正文区只显示最终回答；折叠态整轮只占一行。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="topbar">
+    <div class="iconbtn"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="#171719" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">修复 Grok 生图报错</div>
+    <div class="spacer"></div>
+    <div class="pill" style="height:32px;padding:0 10px;font-size:12px">Flash · 高 <svg width="8" height="8" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" stroke="#8a8f98" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="iconbtn" style="width:32px;height:32px;border-radius:11px"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v8m0-8L5 5m3-3l3 3" stroke="#171719" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9v3.5A1.5 1.5 0 004.5 14h7a1.5 1.5 0 001.5-1.5V9" stroke="#171719" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="chat">
+    <div class="user-row"><div class="bubble-user">修复 Grok 生图报错，加上失败重试</div></div>
+    <div class="meta"><span>复制</span><span>04:12</span></div>
+    <div class="workrow">
+      已工作 1 分 25 秒
+      <svg style="margin-left:2px" width="9" height="9" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" stroke="#b3b8c2" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div class="para">定位到生图接口偶发 429，但重试是立即重发的。我把重试改成指数退避，并把参数校验提前，避免无效请求。</div>
+    <div class="actions"><span>复制</span><span>04:12</span></div>
+  </div>
+  <div class="composer">
+    <div class="ph">提出后续修改要求…</div>
+    <div class="bar">
+      <div class="round"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#171719" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="send"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 12V2M7 2L2.8 6.2M7 2l4.2 4.2" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 3 已工作展开 ============ -->
+<figure>
+<figcaption>③ 已工作 · 展开时间线</figcaption>
+<p class="note">点「已工作」展开＝网页端原版进度：思考/技能/终端/读取全在这里，不占正文空间；图标为官方同款。每段思考本身还可再折叠。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="topbar">
+    <div class="iconbtn"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="#171719" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div style="font-size:15px;font-weight:700">修复 Grok 生图报错</div>
+    <div class="spacer"></div>
+    <div class="pill" style="height:32px;padding:0 10px;font-size:12px">Flash · 高</div>
+  </div>
+  <div class="chat">
+    <div class="user-row"><div class="bubble-user">修复 Grok 生图报错，加上失败重试</div></div>
+    <div class="workrow" style="border-bottom:none;margin-bottom:2px">
+      已工作 1 分 25 秒
+      <svg style="margin-left:2px" width="9" height="9" viewBox="0 0 10 10"><path d="M1 6l4-4 4 4" stroke="#b3b8c2" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div class="tl">
+      <div>
+        <div class="t-head"><svg class="lic"><use href="#i-brain"/></svg>思考 · 持续了几秒 <svg width="8" height="8" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" stroke="#b3b8c2" stroke-width="1.6" fill="none"/></svg></div>
+        <div class="t-body">先在 GitHub 上搜一下 ZCode / IPA 相关的仓库。生图 429 大概率是限流，先确认重试逻辑。</div>
+      </div>
+      <div class="t-head"><svg class="lic"><use href="#i-wand"/></svg>技能 <span style="color:var(--accent)">github:setup</span></div>
+      <div class="t-head"><svg class="lic"><use href="#i-term"/></svg>终端</div>
+      <div class="t-cmd">gh search repos "zcode ipa" --limit 2…</div>
+      <div class="t-head"><svg class="lic"><use href="#i-search"/></svg>读取 <span class="t-link">zcode/cli/plugins/…</span></div>
+      <div>
+        <div class="t-head"><svg class="lic"><use href="#i-brain"/></svg>思考 · 持续了几秒</div>
+        <div class="t-body">初步搜到不少仓库，但还没看到明确的 iOS IPA 项目，再按关键词精确查一遍。</div>
+      </div>
+      <div class="t-head"><svg class="lic"><use href="#i-term"/></svg>终端</div>
+      <div class="t-cmd">gh repo view limaoswag-wq/ZCode…</div>
+    </div>
+    <div class="para">找到看起来像 iOS 端的仓库了，我再核对一下它是不是能出 IPA。</div>
+  </div>
+  <div class="composer">
+    <div class="ph">提出后续修改要求…</div>
+    <div class="bar">
+      <div class="round"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#171719" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="send"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 12V2M7 2L2.8 6.2M7 2l4.2 4.2" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 4 侧边栏 ============ -->
+<figure>
+<figcaption>④ 侧边栏 · 历史会话</figcaption>
+<p class="note">☰ 拉出：设备连接状态、新对话、置顶、工作区、历史会话（状态徽章）；底部扫码 + 设置。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="dim"></div>
+  <div class="drawer">
+    <div class="dev">
+      <div class="avatar">R</div>
+      <div><div class="name">R9000P</div><div class="st"><span class="gdot"></span>已连接 · GLM-5.3-Flash</div></div>
+    </div>
+    <div class="newchat"><svg width="13" height="13" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#2f6bff" stroke-width="1.8" stroke-linecap="round"/></svg>新对话</div>
+    <div class="sec">已置顶</div>
+    <div class="srow"><span class="t">维米API网站</span><span class="badge b-ok">已完成</span></div>
+    <div class="srow"><span class="t">Grok2api</span><span class="badge b-ok">已完成</span></div>
+    <div class="srow"><span class="t">chatgpt2api</span><span class="badge b-ok">已完成</span></div>
+    <div class="sec">工作区</div>
+    <div class="srow"><svg width="13" height="13" viewBox="0 0 14 14"><path d="M1.5 4a1.5 1.5 0 011.5-1.5h2.6l1.4 1.6h4A1.5 1.5 0 0112.5 5.6V10A1.5 1.5 0 0111 11.5H3A1.5 1.5 0 011.5 10V4z" stroke="#8a8f98" stroke-width="1.3" fill="none"/></svg><span class="t">ZCodeProject <span style="color:var(--ink3);font-size:11px">本地 · 21 个任务</span></span><span style="color:var(--ink3)">›</span></div>
+    <div class="sec">历史会话</div>
+    <div class="srow on"><span class="t">zcode网页版手机控制</span><span class="time">刚刚</span><span class="badge b-run">● 运行中</span></div>
+    <div class="srow"><span class="t">你好</span><span class="time">21分</span><span class="badge b-ok">已完成</span></div>
+    <div class="srow"><span class="t">Mineradio 集成 Apple Music</span><span class="time">23分</span><span class="badge b-ok">已完成</span></div>
+    <div class="srow"><span class="t">修复 Grok 生图参数报错</span><span class="time">1时</span><span class="badge b-err">出错</span></div>
+    <div class="foot">
+      <div class="fbtn"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="4" height="4" rx="1" stroke="#171719" stroke-width="1.3" fill="none"/><rect x="8.5" y="1.5" width="4" height="4" rx="1" stroke="#171719" stroke-width="1.3" fill="none"/><rect x="1.5" y="8.5" width="4" height="4" rx="1" stroke="#171719" stroke-width="1.3" fill="none"/><path d="M8.5 10.5h4m-2-2v4" stroke="#171719" stroke-width="1.3" stroke-linecap="round"/></svg>扫码连接</div>
+      <div class="fbtn"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" stroke="#171719" stroke-width="1.3" fill="none"/><path d="M7 1.5v2M7 10.5v2M1.5 7h2M10.5 7h2M3.1 3.1l1.4 1.4M9.5 9.5l1.4 1.4M10.9 3.1L9.5 4.5M4.5 9.5l-1.4 1.4" stroke="#171719" stroke-width="1.3" stroke-linecap="round"/></svg>设置</div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 5 模型/思考/模式弹层 ============ -->
+<figure>
+<figcaption>⑤ 模型 / 思考等级 / 模式</figcaption>
+<p class="note">点模型胶囊弹出（Kimi 手势）：模型分组打勾 → 思考等级 低/中/高/极高 → 模式四档。全部写回官方协议。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="topbar">
+    <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke="#171719" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div class="pill" style="background:var(--accent-weak);color:var(--accent)">GLM-5.3-Flash · 高思维</div>
+  </div>
+  <div class="dim" style="background:rgba(0,0,0,.18)"></div>
+  <div class="pop">
+    <div class="grp">Z.AI</div>
+    <div class="prow"><div><div class="pt">GLM-5.3-Flash <span style="font-size:10px;color:var(--accent);background:var(--accent-weak);border-radius:5px;padding:1px 5px">视觉</span></div><div class="pd">旗舰，擅长 Agent 与长任务</div></div><span class="ck">✓</span></div>
+    <div class="prow"><div><div class="pt">vlimi</div><div class="pd">自定义中转</div></div></div>
+    <div class="prow"><div><div class="pt">亚马逊</div><div class="pd">AWS Bedrock</div></div></div>
+    <div class="pdiv"></div>
+    <div class="prow"><div><div class="pt">思考等级</div><div class="pd">高</div></div><span style="margin-left:auto;color:var(--ink3)">›</span></div>
+    <div class="prow"><div><div class="pt">模式</div><div class="pd">完全访问</div></div><span style="margin-left:auto;color:var(--ink3)">›</span></div>
+    <div class="pdiv"></div>
+    <div class="prow"><div class="pt" style="color:var(--ink2)">管理模型</div></div>
+  </div>
+  <div class="pop sub2">
+    <div class="prow"><div class="pt">低</div></div>
+    <div class="prow"><div class="pt">中</div></div>
+    <div class="prow"><div class="pt">高</div><span class="ck">✓</span></div>
+    <div class="prow"><div class="pt">极高</div></div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 6 附件面板 ============ -->
+<figure>
+<figcaption>⑥ 「＋」附件面板</figcaption>
+<p class="note">底部弹出：拍照 / 照片 / 文件；已选附件以缩略卡显示在输入卡上方，随消息走官方 attachment 通道。</p>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="dim" style="background:rgba(0,0,0,.25)"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="grid">
+      <div class="cell"><svg width="24" height="24" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13" rx="3" stroke="#171719" stroke-width="1.6" fill="none"/><path d="M9 6.5L10.5 4h3L15 6.5" stroke="#171719" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="#171719" stroke-width="1.6" fill="none"/></svg>拍照</div>
+      <div class="cell"><svg width="24" height="24" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" stroke="#171719" stroke-width="1.6" fill="none"/><circle cx="9" cy="10" r="1.8" stroke="#171719" stroke-width="1.5" fill="none"/><path d="M4 17l4.5-4 3.5 3 3-2.5L20 16" stroke="#171719" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>照片</div>
+      <div class="cell"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M6 3h8l4 4v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="#171719" stroke-width="1.6" fill="none"/><path d="M14 3v4h4" stroke="#171719" stroke-width="1.6" fill="none"/></svg>文件</div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+<!-- ============ 7 深色首页 ============ -->
+<figure>
+<figcaption>⑦ 深色模式 · 首页</figcaption>
+<p class="note">#111214 底 / #1C1D21 卡 / 强调蓝不变；跟随系统。</p>
+<div class="phone dark">
+  <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ⌁ ▭</span></div>
+  <div class="topbar">
+    <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke="#f2f3f5" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div class="pill">GLM-5.3-Flash <span class="lv">· 高思维</span> <svg width="9" height="9" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" stroke="#8a8f98" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="spacer"></div>
+    <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2v8m0-8L5 5m3-3l3 3" stroke="#f2f3f5" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9v3.5A1.5 1.5 0 004.5 14h7a1.5 1.5 0 001.5-1.5V9" stroke="#f2f3f5" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="center">
+    <div class="logo" style="background:linear-gradient(145deg,#3a3d44,#1c1d21)">Z</div>
+    <div class="greet">夜深啦，别忘了<br>照顾好自己哦</div>
+    <div class="greet-sub">已连接 R9000P · ZCodeProject</div>
+  </div>
+  <div class="chips" style="display:none"></div>
+  <div class="composer">
+    <div class="ph">向 ZCode 提问…</div>
+    <div class="bar">
+      <div class="round"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#f2f3f5" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="send"><svg width="15" height="15" viewBox="0 0 14 14"><path d="M7 12V2M7 2L2.8 6.2M7 2l4.2 4.2" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</figure>
+
+</div>
+</body>
+</html>
