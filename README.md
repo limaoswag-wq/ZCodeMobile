@@ -18,7 +18,7 @@
 ## 电脑桥
 
 ```powershell
-cd C:\Users\58499\ZCodeProject\ZCodeMobile\bridge
+cd C:\Users\user\ZCodeProject\ZCodeMobile\bridge
 python zcode_bridge.py
 ```
 
