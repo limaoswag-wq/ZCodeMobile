@@ -162,15 +162,15 @@ enum DiffHTML {
             if file.content?.isEmpty == false {
                 body = lines.enumerated().map { index, line in
                     let cls: String
-                    let fg = ink
-                    if line.hasPrefix("+") { cls = "add"; }
+                    if line.hasPrefix("+") { cls = "add" }
                     else if line.hasPrefix("-") { cls = "del" }
                     else { cls = "ctx" }
                     let color = cls == "add" ? addFg : cls == "del" ? delFg : fg
-                    let bgCls = cls == "add" ? " style=\"background:\(addBg)\"" : cls == "del" ? " style=\"background:\(delBg)\"" : ""
-                    let n1 = cls == "del" ? "\(index + 1)" : "\(index + 1)"
+                    let dlCls = cls == "ctx" ? "" : " " + cls
+                    let bgStyle = cls == "add" ? " style=\"background:\(addBg)\"" : cls == "del" ? " style=\"background:\(delBg)\"" : ""
+                    let n1 = "\(index + 1)"
                     let n2 = "\(index + 1)"
-                    return "<div class=\"dl\(cls == \"ctx\" ? \"\" : \" \" + cls)\"\(bgCls)><span class=\"n\">\(n1)</span><span class=\"n\">\(n2)</span><span class=\"c\" style=\"color:\(color)\">\(DiffHTML.escape(String(line)))</span></div>"
+                    return "<div class=\"dl\(dlCls)\"\(bgStyle)><span class=\"n\">\(n1)</span><span class=\"n\">\(n2)</span><span class=\"c\" style=\"color:\(color)\">\(DiffHTML.escape(String(line)))</span></div>"
                 }.joined()
             } else {
                 body = "<div class=\"empty\">diff 内容暂未从桌面端取到（原始返回已记录到调试文件）。</div>"

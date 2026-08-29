@@ -76,14 +76,6 @@ struct RootView: View {
         }
         .animation(.easeOut(duration: 0.16), value: showModelMenu)
         .animation(.easeOut(duration: 0.22), value: !app.panelTabs.isEmpty)
-    }
-
-    private var panelBinding: Binding<Bool> {
-        Binding(
-            get: { !app.panelTabs.isEmpty },
-            set: { if !$0 { app.panelTabs.removeAll() } }
-        )
-    }
         .overlay {
             if showSidebar, app.hasLink {
                 SideBarDim(showSidebar: $showSidebar)
@@ -115,6 +107,13 @@ struct RootView: View {
         .onChange(of: showModelMenu) { shown in
             if shown { app.fetchProviders() }
         }
+    }
+
+    private var panelBinding: Binding<Bool> {
+        Binding(
+            get: { !app.panelTabs.isEmpty },
+            set: { if !$0 { app.panelTabs.removeAll() } }
+        )
     }
 }
 
