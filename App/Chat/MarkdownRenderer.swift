@@ -36,7 +36,7 @@ enum MarkdownRenderer {
 
         func flushTable() {
             if table.count >= 2 {
-                result.append(MarkdownSegment(kind: .table(table)))
+                result.append(MarkdownSegment(kind: .table(table), text: ""))
             } else if table.count == 1 {
                 paragraph.append(table[0].joined(separator: " | "))
             }

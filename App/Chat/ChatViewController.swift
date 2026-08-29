@@ -164,6 +164,14 @@ final class ChatViewController: UIViewController, UITableViewDataSource, UITable
                     case .mermaid:
                         flush(index)
                         rows.append(.web(id: "\(id)-m\(index)", code: segment.text, language: "mermaid"))
+                    case .table(let tableRows):
+                        flush(index)
+                        var pipe = ""
+                        for (rowIndex, cells) in tableRows.enumerated() {
+                            pipe += "| " + cells.joined(separator: " | ") + " |\n"
+                            if rowIndex == 0 { pipe += "| --- |\n" }
+                        }
+                        rows.append(.text(id: "\(id)-tb\(index)", markdown: pipe))
                     case .heading:
                         textChunks.append("# " + segment.text)
                     case .bullet:
@@ -778,21 +786,20 @@ final class WorkCell: UITableViewCell {
             arrow.trailingAnchor.constraint(lessThanOrEqualTo: wrap.trailingAnchor)
         ])
 
-        if let detail, !detail.isEmpty {
-            let body = UILabel()
-            body.translatesAutoresizingMaskIntoConstraints = false
-            body.font = monoDetail
-                ? .monospacedSystemFont(ofSize: 11.5, weight: .regular)
-                : .systemFont(ofSize: 13)
-            body.textColor = ZUIColor.inkSoft(trait)
-            body.numberOfLines = expanded ? 24 : 1
-            body.text = detail
-            if expanded {
-                body.backgroundColor = ZUIColor.surface(trait)
-                body.layer.cornerRadius = 8
-                body.isLayoutMarginsRelativeArrangement = true
-                body.layoutMargins = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
-            }
+            if let detail, !detail.isEmpty {
+                let body = UILabel()
+                body.translatesAutoresizingMaskIntoConstraints = false
+                body.font = monoDetail
+                    ? .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+                    : .systemFont(ofSize: 13)
+                body.textColor = ZUIColor.inkSoft(trait)
+                body.numberOfLines = expanded ? 24 : 1
+                body.text = expanded ? "  " + detail.replacingOccurrences(of: "\n", with: "\n  ") : detail
+                if expanded {
+                    body.backgroundColor = ZUIColor.surface(trait)
+                    body.layer.cornerRadius = 8
+                    body.clipsToBounds = true
+                }
             wrap.addSubview(body)
             NSLayoutConstraint.activate([
                 body.topAnchor.constraint(equalTo: head.bottomAnchor, constant: 4),

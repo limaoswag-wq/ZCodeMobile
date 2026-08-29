@@ -583,7 +583,7 @@ final class OfficialRelay: NSObject, URLSessionWebSocketDelegate {
 
     static func parseFileChanges(_ raw: Any?) -> [FileChangeInfo] {
         // 响应结构未知，做多位置防御解析；原始返回已落调试文件。
-        var candidates: [Any] = []
+        var candidates: [[String: Any]] = []
         if let dict = raw as? [String: Any] {
             for key in ["files", "changes", "fileChanges", "items"] {
                 if let arr = dict[key] as? [[String: Any]] { candidates = arr; break }
