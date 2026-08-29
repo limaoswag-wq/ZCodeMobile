@@ -322,6 +322,7 @@ extension ChatViewController.ChatRow {
         case .work(let id, _, _, _, _): return id
         case .text(let id, _): return id
         case .web(let id, _, _): return id
+        case .files(let files): return "files-" + String(files.count) + "-" + (files.first?.id ?? "")
         }
     }
 }
@@ -913,6 +914,7 @@ final class FileCardCell: UITableViewCell {
     private let rowsStack = UIStackView()
     private var onReview: ((FileChangeInfo) -> Void)?
     private var onOpen: ((FileChangeInfo) -> Void)?
+    private var onUndo: (() -> Void)?
     private var buttonFiles: [UIButton: FileChangeInfo] = [:]
     private var buttonModes: [UIButton: String] = [:]
 
@@ -966,6 +968,7 @@ final class FileCardCell: UITableViewCell {
                    onUndo: @escaping () -> Void) {
         self.onReview = onReview
         self.onOpen = onOpen
+        self.onUndo = onUndo
         buttonFiles.removeAll()
         buttonModes.removeAll()
         applyChrome()
@@ -1088,5 +1091,9 @@ final class FileCardCell: UITableViewCell {
 
     @objc private func tapOpen(_ sender: UIButton) {
         if let file = buttonFiles[sender] { onOpen?(file) }
+    }
+
+    @objc private func tapUndo() {
+        onUndo?()
     }
 }

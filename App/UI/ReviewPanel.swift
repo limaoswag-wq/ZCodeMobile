@@ -67,7 +67,7 @@ struct ReviewPanelDrawer: View {
     }
 
     private func tabButton(_ tab: AppState.PanelTab) -> some View {
-        let name = tab.file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last ?? tab.file.path
+        let name = tab.file.path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last.map(String.init) ?? tab.file.path
         let active = tab.id == app.activePanelTabId
         return Button {
             app.activePanelTabId = tab.id
@@ -165,7 +165,7 @@ enum DiffHTML {
                     if line.hasPrefix("+") { cls = "add" }
                     else if line.hasPrefix("-") { cls = "del" }
                     else { cls = "ctx" }
-                    let color = cls == "add" ? addFg : cls == "del" ? delFg : fg
+                    let color = cls == "add" ? addFg : cls == "del" ? delFg : ink
                     let dlCls = cls == "ctx" ? "" : " " + cls
                     let bgStyle = cls == "add" ? " style=\"background:\(addBg)\"" : cls == "del" ? " style=\"background:\(delBg)\"" : ""
                     let n1 = "\(index + 1)"
