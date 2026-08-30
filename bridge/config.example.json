@@ -6,6 +6,8 @@
   "zcodeBotId": "",
   "zcodeUserId": "zcode-mobile",
   "zcodeWebhookSecret": "",
-  "barkEnabled": false,
-  "barkUrl": ""
+  "barkEnabled": true,
+  "barkUrl": "https://api.day.app/你的Key",
+  "barkTitle": "ZCode",
+  "barkIcon": "https://图片地址.png"
 }
